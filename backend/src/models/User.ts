@@ -1,17 +1,30 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
+import type { Role } from "../utils/types";
 
-interface IUser extends Document {
+export interface IUser extends Document {
+  _id: Types.ObjectId;
   name: string;
   phone: string;
   password: string;
-  role: "superadmin" | "admin";
+  role: Role;
+  isActive: boolean;
 }
 
-const userSchema = new Schema<IUser>({
-  name: String,
-  phone: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ["superadmin", "admin"], default: "admin" },
-});
+const userSchema = new Schema<IUser>(
+  {
+    name: { type: String, required: true, trim: true },
+    phone: { type: String, required: true, unique: true, trim: true },
+    password: { type: String, required: true },
+    role: {
+      type: String,
+      enum: ["superadmin", "admin", "user"],
+      default: "user",
+    },
+    isActive: { type: Boolean, default: true },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 export default model<IUser>("User", userSchema);

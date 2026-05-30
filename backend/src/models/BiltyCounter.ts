@@ -6,8 +6,8 @@ interface IBiltyCounter extends Document {
 }
 
 const biltyCounterSchema = new Schema<IBiltyCounter>({
-  prefix: { type: String, required: true },
-  counter: { type: Number, default: 1 },
+  prefix: { type: String, required: true, unique: true },
+  counter: { type: Number, default: 0 },
 });
 
 export default model<IBiltyCounter>("BiltyCounter", biltyCounterSchema);

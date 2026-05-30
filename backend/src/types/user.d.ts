@@ -2,7 +2,7 @@ export interface UserType {
   _id: string;
   name: string;
   phone: string;
-  email?: string;
   password: string;
-  role: "admin" | "superadmin";
+  role: "admin" | "superadmin" | "user";
+  isActive: boolean;
 }

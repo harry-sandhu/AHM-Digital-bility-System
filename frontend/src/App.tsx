@@ -7,18 +7,27 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import type { Role } from "./types/auth";
 import LoginPage from "./Pages/LoginPage";
-import Signup from "./Pages/SignupPage";
+import SignupPage from "./Pages/SignupPage";
 import HomePage from "./Pages/HomePage";
 import BiltyPage from "./Pages/BiltyPage";
+import UsersPage from "./Pages/UsersPage";
+import CreateAdminPage from "./Pages/CreateAdminPage";
+import BiltyTermsPage from "./Pages/BiltyTermsPage";
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { token } = useAuth();
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles?: Role[];
+}> = ({ children, allowedRoles }) => {
+  const { token, role } = useAuth();
 
   if (!token) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && (!role || !allowedRoles.includes(role))) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -35,7 +44,7 @@ const AppRoutes = () => {
       />
       <Route
         path="/signup"
-        element={!token ? <Signup /> : <Navigate to="/" replace />}
+        element={!token ? <SignupPage /> : <Navigate to="/" replace />}
       />
 
       <Route
@@ -47,10 +56,34 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/bilty/terms"
+        element={
+          <ProtectedRoute>
+            <BiltyTermsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/bilty"
         element={
           <ProtectedRoute>
             <BiltyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute allowedRoles={["superadmin", "admin"]}>
+            <UsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admins/new"
+        element={
+          <ProtectedRoute allowedRoles={["superadmin"]}>
+            <CreateAdminPage />
           </ProtectedRoute>
         }
       />

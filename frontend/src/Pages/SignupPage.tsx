@@ -1,75 +1,105 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { register } from "../api/authApi";
+import AuthShell from "../components/AuthShell";
 
-const Signup: React.FC = () => {
+const SignupPage: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
+    setSuccess("");
+    setIsSubmitting(true);
+
     try {
-      const response = await fetch("http://localhost:5000/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role: "superadmin" }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        setError(data.message || "Signup failed");
-        return;
-      }
-
-      navigate("/login");
-    } catch (err) {
-      setError("Something went wrong");
+      await register({ name, phone, password });
+      setSuccess("Account created successfully. Redirecting to login...");
+      setTimeout(() => navigate("/login"), 900);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Signup failed");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded shadow-md w-80 space-y-4"
-      >
-        <h2 className="text-xl font-bold">Superadmin Signup</h2>
-        {error && <p className="text-red-500">{error}</p>}
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full border px-3 py-2"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full border px-3 py-2"
-        />
+    <AuthShell
+      title="Create your user account"
+      subtitle="Users can register themselves, agree to the terms before bilty generation, and download the bilty with attached terms & conditions."
+    >
+      <form onSubmit={handleSubmit} className="card p-8">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-600">
+            User Registration
+          </p>
+          <h2 className="mt-3 text-3xl font-bold text-slate-900">Sign up to get started</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">
+            Your account will be created as a normal user. Admin accounts are created only by the super admin.
+          </p>
+        </div>
+
+        {error ? (
+          <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
+          </p>
+        ) : null}
+        {success ? (
+          <p className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {success}
+          </p>
+        ) : null}
+
+        <div className="mt-6 space-y-4">
+          <input
+            type="text"
+            placeholder="Full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="input"
+          />
+          <input
+            type="text"
+            placeholder="Phone number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            className="input"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="input"
+          />
+        </div>
+
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded"
+          disabled={isSubmitting}
+          className="mt-6 w-full rounded-2xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
         >
-          Sign Up
+          {isSubmitting ? "Creating account..." : "Create Account"}
         </button>
-        <p className="text-sm text-center">
+
+        <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <span
-            className="text-blue-600 cursor-pointer"
-            onClick={() => navigate("/login")}
-          >
-            Login
-          </span>
+          <Link to="/login" className="font-semibold text-blue-600 hover:underline">
+            Login here
+          </Link>
         </p>
       </form>
-    </div>
+    </AuthShell>
   );
 };
 
-export default Signup;
+export default SignupPage;

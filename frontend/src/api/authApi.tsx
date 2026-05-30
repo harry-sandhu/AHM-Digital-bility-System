@@ -1,11 +1,11 @@
 import axiosInstance from "../utils/axiosInstance";
+import type { AuthPayload } from "../types/auth";
 
-export const login = (data: { email: string; password: string }) =>
-  axiosInstance.post("/auth/login", data);
+export const login = (data: { phone: string; password: string }) =>
+  axiosInstance.post<AuthPayload>("/auth/login", data);
 
 export const register = (data: {
-  email: string;
+  name: string;
+  phone: string;
   password: string;
-  role?: string;
-  phone?: string;
 }) => axiosInstance.post("/auth/register", data);
