@@ -1,8 +1,11 @@
 import User from "../models/User";
 import bcrypt from "bcryptjs";
+import { normalizePhone } from "../utils/phoneUtils";
 
 export const seedSuperAdmin = async () => {
-  const superAdminPhone = process.env.SUPERADMIN_PHONE || "0000000000";
+  const superAdminPhone = normalizePhone(
+    process.env.SUPERADMIN_PHONE || "0000000000"
+  );
   const superAdminPassword = process.env.SUPERADMIN_PASSWORD || "admin123";
 
   const existing = await User.findOne({ role: "superadmin" });

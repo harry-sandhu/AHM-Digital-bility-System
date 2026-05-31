@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
+import type { AuthRequest } from "../middleware/auth";
+import { normalizePhone, isPhoneLengthValid } from "../utils/phoneUtils";
 import { signToken } from "../utils/tokenUtils";
 
 const sanitizeUser = (user: {
@@ -24,22 +26,31 @@ export const register = async (req: Request, res: Response) => {
     password?: string;
   };
 
-  if (!name || !phone || !password) {
+  const trimmedName = name?.trim();
+  const normalizedPhone = phone ? normalizePhone(phone) : "";
+
+  if (!trimmedName || !normalizedPhone || !password) {
     return res
       .status(400)
       .json({ error: "Name, phone and password are required" });
   }
 
+  if (!isPhoneLengthValid(normalizedPhone)) {
+    return res
+      .status(400)
+      .json({ error: "Phone number must contain 10 to 15 digits" });
+  }
+
   try {
-    const existing = await User.findOne({ phone: phone.trim() });
+    const existing = await User.findOne({ phone: normalizedPhone });
     if (existing) {
       return res.status(400).json({ error: "Phone already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
-      name: name.trim(),
-      phone: phone.trim(),
+      name: trimmedName,
+      phone: normalizedPhone,
       password: hashedPassword,
       role: "user",
       isActive: true,
@@ -60,12 +71,20 @@ export const login = async (req: Request, res: Response) => {
     password?: string;
   };
 
-  if (!phone || !password) {
+  const normalizedPhone = phone ? normalizePhone(phone) : "";
+
+  if (!normalizedPhone || !password) {
     return res.status(400).json({ error: "Phone and password are required" });
   }
 
+  if (!isPhoneLengthValid(normalizedPhone)) {
+    return res
+      .status(400)
+      .json({ error: "Phone number must contain 10 to 15 digits" });
+  }
+
   try {
-    const user = await User.findOne({ phone: phone.trim() });
+    const user = await User.findOne({ phone: normalizedPhone });
     if (!user) {
       return res.status(400).json({ error: "Invalid phone or password" });
     }
@@ -88,4 +107,12 @@ export const login = async (req: Request, res: Response) => {
   } catch {
     res.status(500).json({ error: "Login failed" });
   }
+};
+
+export const getCurrentUser = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  return res.json({ user: sanitizeUser(req.user) });
 };

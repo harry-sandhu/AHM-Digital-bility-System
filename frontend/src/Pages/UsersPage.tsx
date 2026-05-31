@@ -3,6 +3,7 @@ import Navbar from "../components/Navbar";
 import { disableUserAccount, getAllUsers } from "../api/usersApi";
 import { useAuth } from "../context/AuthContext";
 import type { UserRecord } from "../types/user";
+import { getApiErrorMessage } from "../utils/apiError";
 
 const UsersPage: React.FC = () => {
   const { user } = useAuth();
@@ -18,8 +19,8 @@ const UsersPage: React.FC = () => {
     try {
       const response = await getAllUsers();
       setUsers(response.data);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to load users");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to load users"));
     } finally {
       setLoading(false);
     }
@@ -37,8 +38,8 @@ const UsersPage: React.FC = () => {
       await disableUserAccount(id);
       setActionMessage("User disabled successfully.");
       await loadUsers();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to disable user");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to disable user"));
     }
   };
 

@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi } from "../api/authApi";
 import AuthShell from "../components/AuthShell";
 import { useAuth } from "../context/AuthContext";
+import { getApiErrorMessage } from "../utils/apiError";
+import { normalizePhone } from "../utils/phone";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
@@ -18,11 +20,14 @@ const LoginPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await loginApi({ phone, password });
+      const response = await loginApi({
+        phone: normalizePhone(phone),
+        password,
+      });
       login(response.data.token, response.data.user);
       navigate("/");
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Login failed");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Login failed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -31,7 +36,7 @@ const LoginPage: React.FC = () => {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Log in with your registered phone number to manage bilty creation, user access, and transport records."
+      subtitle="Log in with your registered phone number to manage bilty creation, user access, and transport records. Use digits only, for example 9999999999."
     >
       <form onSubmit={handleSubmit} className="card p-8">
         <div>
@@ -54,13 +59,17 @@ const LoginPage: React.FC = () => {
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-700">Phone</label>
             <input
-              type="text"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={15}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(normalizePhone(e.target.value))}
               className="input"
               placeholder="Enter your phone number"
               required
             />
+            <p className="mt-2 text-xs text-slate-500">Enter digits only, without spaces or symbols.</p>
           </div>
 
           <div>

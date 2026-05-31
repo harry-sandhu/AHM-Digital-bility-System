@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/authApi";
 import AuthShell from "../components/AuthShell";
+import { getApiErrorMessage } from "../utils/apiError";
+import { normalizePhone } from "../utils/phone";
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,11 +21,11 @@ const SignupPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await register({ name, phone, password });
+      await register({ name: name.trim(), phone: normalizePhone(phone), password });
       setSuccess("Account created successfully. Redirecting to login...");
       setTimeout(() => navigate("/login"), 900);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Signup failed");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Signup failed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -32,7 +34,7 @@ const SignupPage: React.FC = () => {
   return (
     <AuthShell
       title="Create your user account"
-      subtitle="Users can register themselves, agree to the terms before bilty generation, and download the bilty with attached terms & conditions."
+      subtitle="Users can register themselves, agree to the terms before bilty generation, and download the bilty with attached terms & conditions. Use digits only for the phone number, for example 9999999999."
     >
       <form onSubmit={handleSubmit} className="card p-8">
         <div>
@@ -65,14 +67,20 @@ const SignupPage: React.FC = () => {
             required
             className="input"
           />
-          <input
-            type="text"
-            placeholder="Phone number"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            className="input"
-          />
+          <div>
+            <input
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              maxLength={15}
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              required
+              className="input"
+            />
+            <p className="mt-2 text-xs text-slate-500">Enter digits only, without spaces or symbols.</p>
+          </div>
           <input
             type="password"
             placeholder="Password"

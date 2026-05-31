@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User";
+import { normalizePhone, isPhoneLengthValid } from "../utils/phoneUtils";
 
 export const getAllUsers = async (_req: Request, res: Response) => {
   try {
@@ -21,14 +22,23 @@ export const createAdmin = async (req: Request, res: Response) => {
     password?: string;
   };
 
-  if (!name || !phone || !password) {
+  const trimmedName = name?.trim();
+  const normalizedPhone = phone ? normalizePhone(phone) : "";
+
+  if (!trimmedName || !normalizedPhone || !password) {
     return res
       .status(400)
       .json({ error: "Name, phone and password are required" });
   }
 
+  if (!isPhoneLengthValid(normalizedPhone)) {
+    return res
+      .status(400)
+      .json({ error: "Phone number must contain 10 to 15 digits" });
+  }
+
   try {
-    const existing = await User.findOne({ phone: phone.trim() });
+    const existing = await User.findOne({ phone: normalizedPhone });
     if (existing) {
       return res.status(400).json({ error: "Phone already exists" });
     }
@@ -36,8 +46,8 @@ export const createAdmin = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const admin = await User.create({
-      name: name.trim(),
-      phone: phone.trim(),
+      name: trimmedName,
+      phone: normalizedPhone,
       password: hashedPassword,
       role: "admin",
       isActive: true,

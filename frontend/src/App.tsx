@@ -34,7 +34,15 @@ const ProtectedRoute: React.FC<{
 };
 
 const AppRoutes = () => {
-  const { token } = useAuth();
+  const { token, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 text-center text-sm text-slate-600">
+        Checking your saved session...
+      </div>
+    );
+  }
 
   return (
     <Routes>

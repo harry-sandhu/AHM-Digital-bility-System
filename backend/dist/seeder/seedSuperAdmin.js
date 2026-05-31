@@ -15,8 +15,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.seedSuperAdmin = void 0;
 const User_1 = __importDefault(require("../models/User"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const phoneUtils_1 = require("../utils/phoneUtils");
 const seedSuperAdmin = () => __awaiter(void 0, void 0, void 0, function* () {
-    const superAdminPhone = process.env.SUPERADMIN_PHONE || "0000000000";
+    const superAdminPhone = (0, phoneUtils_1.normalizePhone)(process.env.SUPERADMIN_PHONE || "0000000000");
     const superAdminPassword = process.env.SUPERADMIN_PASSWORD || "admin123";
     const existing = yield User_1.default.findOne({ role: "superadmin" });
     if (!existing) {

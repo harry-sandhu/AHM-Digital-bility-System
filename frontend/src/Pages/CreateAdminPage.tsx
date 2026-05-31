@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { createAdminAccount } from "../api/usersApi";
+import { getApiErrorMessage } from "../utils/apiError";
+import { normalizePhone } from "../utils/phone";
 
 const CreateAdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,14 +21,18 @@ const CreateAdminPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await createAdminAccount({ name, phone, password });
+      await createAdminAccount({
+        name: name.trim(),
+        phone: normalizePhone(phone),
+        password,
+      });
       setSuccess("Admin created successfully.");
       setName("");
       setPhone("");
       setPassword("");
       setTimeout(() => navigate("/users"), 900);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to create admin");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to create admin"));
     } finally {
       setIsSubmitting(false);
     }
@@ -87,14 +93,20 @@ const CreateAdminPage: React.FC = () => {
                 className="input"
                 required
               />
-              <input
-                type="text"
-                placeholder="Phone number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="input"
-                required
-              />
+              <div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  maxLength={15}
+                  placeholder="Phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                  className="input"
+                  required
+                />
+                <p className="mt-2 text-xs text-slate-500">Enter digits only, without spaces or symbols.</p>
+              </div>
               <input
                 type="password"
                 placeholder="Password"
