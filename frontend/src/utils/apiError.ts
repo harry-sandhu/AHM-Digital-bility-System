@@ -28,7 +28,7 @@ export const getApiErrorMessage = (
         API_BASE_URL.includes("localhost");
 
       return isDeployedFrontendUsingLocalhost
-        ? "Cannot reach server. This deployed frontend is still pointing to localhost. Set VITE_API_URL in Vercel to your live backend /api URL."
+        ? "Cannot reach server. This deployed frontend is still pointing to localhost. Set VITE_API_URL in Vercel to your live backend URL. You can use either the server root URL or the /api URL."
         : "Cannot reach server. Please check your internet connection or backend deployment.";
     }
 

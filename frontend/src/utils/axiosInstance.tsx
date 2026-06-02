@@ -1,7 +1,22 @@
 import axios from "axios";
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const normalizeApiBaseUrl = (url?: string) => {
+  const fallbackUrl = "http://localhost:5000/api";
+
+  if (!url?.trim()) {
+    return fallbackUrl;
+  }
+
+  const trimmedUrl = url.trim().replace(/\/+$/, "");
+
+  if (trimmedUrl.endsWith("/api")) {
+    return trimmedUrl;
+  }
+
+  return `${trimmedUrl}/api`;
+};
+
+export const API_BASE_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 if (
   typeof window !== "undefined" &&
