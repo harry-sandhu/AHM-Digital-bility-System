@@ -38,7 +38,7 @@ const BiltyTermsPage: React.FC = () => {
             <h2 className="text-xl font-semibold text-slate-900">Before you continue</h2>
             <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
               <li>• Bilty number will be generated only after acceptance.</li>
-              <li>• Downloaded / printed bilty will include page 2 with terms & conditions.</li>
+              <li>• Downloaded PDF / PNG or printed bilty will include page 2 with terms & conditions.</li>
               <li>• Please ensure shipment details are correct before saving the bilty.</li>
             </ul>
 

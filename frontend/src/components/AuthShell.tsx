@@ -25,7 +25,7 @@ const AuthShell: React.FC<AuthShellProps> = ({ title, subtitle, children }) => {
               Secure role-based access for super admin, admin, and users.
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              Generate, manage, and print bilty documents with terms & conditions.
+              Generate, manage, print, and download bilty documents with terms & conditions.
             </div>
           </div>
         </div>

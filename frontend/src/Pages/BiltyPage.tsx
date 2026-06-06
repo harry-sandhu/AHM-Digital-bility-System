@@ -24,7 +24,7 @@ const BiltyPage: React.FC = () => {
               </p>
               <h1 className="mt-3 text-3xl font-bold text-slate-900">Create and save your bilty</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                The bilty layout remains the same as your physical format. After saving, you can print / download a 2-page copy with the bilty on page 1 and terms & conditions on page 2.
+                The bilty layout remains the same as your physical format. After saving, you can download a 2-page PDF or PNG copy with the bilty on page 1 and terms & conditions on page 2.
               </p>
             </div>
             <button

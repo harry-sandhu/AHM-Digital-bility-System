@@ -34,7 +34,7 @@ const SignupPage: React.FC = () => {
   return (
     <AuthShell
       title="Create your user account"
-      subtitle="Users can register themselves, agree to the terms before bilty generation, and download the bilty with attached terms & conditions. Use digits only for the phone number, for example 9999999999."
+      subtitle="Users can register themselves, agree to the terms before bilty generation, and download the bilty as PDF or PNG with attached terms & conditions. Use digits only for the phone number, for example 9999999999."
     >
       <form onSubmit={handleSubmit} className="card p-8">
         <div>

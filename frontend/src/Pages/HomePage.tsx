@@ -27,8 +27,8 @@ const HomePage: React.FC = () => {
     },
     {
       title: "Mode",
-      value: "Digital + Print",
-      description: "Create digitally and print / save as PDF whenever needed.",
+      value: "Digital + Download",
+      description: "Create digitally and download as PDF or PNG whenever needed.",
     },
   ];
 
@@ -51,7 +51,7 @@ const HomePage: React.FC = () => {
                 {user?.role === "admin" &&
                   "Review all users and bilty records, and support transport operations with a faster digital workflow."}
                 {user?.role === "user" &&
-                  "Create your bilty after accepting the terms & conditions, save it digitally, and download the final 2-page copy anytime."}
+                  "Create your bilty after accepting the terms & conditions, save it digitally, and download the final 2-page PDF or PNG copy anytime."}
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
