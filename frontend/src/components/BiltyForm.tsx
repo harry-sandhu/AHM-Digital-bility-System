@@ -8,6 +8,7 @@ import {
   initialBiltyFormData,
   type BiltyFormState,
 } from "../types/biltyForm";
+import { readBiltyDraft, writeBiltyDraft } from "../utils/biltyDraft";
 
 const BiltyForm: React.FC = () => {
   const { user } = useAuth();
@@ -30,12 +31,40 @@ const BiltyForm: React.FC = () => {
   }, [user?.name]);
 
   useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
     let isMounted = true;
 
-    const reserveBilty = async () => {
+    const initializeBilty = async () => {
       setIsPreparing(true);
       setErrorMessage("");
       setStatusMessage("");
+
+      const storedDraft = readBiltyDraft(user.id);
+
+      if (storedDraft?.biltyId && storedDraft.formData?.biltyNumber) {
+        if (!isMounted) {
+          return;
+        }
+
+        setBiltyId(storedDraft.biltyId);
+        setFormData({
+          ...initialBiltyFormData,
+          ...storedDraft.formData,
+          bookingClerk: storedDraft.formData.bookingClerk || user.name || "",
+        });
+        setHasSavedBilty(storedDraft.hasSavedBilty);
+        setStatusMessage(
+          storedDraft.hasSavedBilty
+            ? "Resumed your last saved bilty. If you change anything, save it again before downloading."
+            : "Resumed your bilty draft. Continue where you left off."
+        );
+        setIsPreparing(false);
+        return;
+      }
+
       setHasSavedBilty(false);
 
       try {
@@ -49,7 +78,7 @@ const BiltyForm: React.FC = () => {
         setFormData((prev) => ({
           ...prev,
           biltyNumber: response.data.biltyNumber,
-          bookingClerk: prev.bookingClerk || user?.name || "",
+          bookingClerk: prev.bookingClerk || user.name || "",
         }));
         setStatusMessage("Bilty number reserved. Fill the form and save it.");
       } catch (err: any) {
@@ -67,18 +96,40 @@ const BiltyForm: React.FC = () => {
       }
     };
 
-    void reserveBilty();
+    void initializeBilty();
 
     return () => {
       isMounted = false;
     };
-  }, [user?.name]);
+  }, [user?.id, user?.name]);
+
+  useEffect(() => {
+    if (!user?.id || !biltyId || !formData.biltyNumber) {
+      return;
+    }
+
+    writeBiltyDraft(user.id, {
+      biltyId,
+      formData,
+      hasSavedBilty,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [user?.id, biltyId, formData, hasSavedBilty]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+
+    setErrorMessage("");
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    if (hasSavedBilty) {
+      setHasSavedBilty(false);
+      setStatusMessage(
+        "You updated the bilty. Save it again to refresh the PDF, PNG, and print copy."
+      );
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -115,11 +166,11 @@ const BiltyForm: React.FC = () => {
             <h2 className="text-xl font-bold text-slate-900">Create Bilty</h2>
             <p className="mt-1 text-sm text-slate-600">
               {isPreparing
-                ? "Reserving bilty number..."
+                ? "Preparing bilty workspace..."
                 : `Reserved bilty no: ${formData.biltyNumber || "—"}`}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Save the form first, then download the bilty as a 2-page PDF or PNG set with page 1 as the bilty and page 2 as the terms & conditions.
+              Draft changes stay saved in this browser until you start a new bilty. Save the form first, then download the bilty as a 2-page PDF or PNG set with page 1 as the bilty and page 2 as the terms &amp; conditions.
             </p>
           </div>
 

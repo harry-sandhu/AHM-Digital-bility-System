@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import BiltyList from "../components/BiltyList";
 import { useAuth } from "../context/AuthContext";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
+import { clearBiltyDraft } from "../utils/biltyDraft";
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -11,6 +12,7 @@ const HomePage: React.FC = () => {
 
   const handleStartBiltyFlow = () => {
     sessionStorage.removeItem(BILTY_TERMS_ACCEPTED_KEY);
+    clearBiltyDraft(user?.id);
     navigate("/bilty/terms");
   };
 

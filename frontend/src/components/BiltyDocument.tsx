@@ -20,6 +20,18 @@ const boxStyle = (
   height: pct(height),
 });
 
+const normalizeDisplayValue = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value);
+};
+
 type PositionedBoxProps = {
   style: CSSProperties;
   label?: string;
@@ -52,37 +64,74 @@ const PositionedBox: React.FC<PositionedBoxProps> = ({
 
 type TextInputProps = InputHTMLAttributes<HTMLInputElement> & {
   align?: "left" | "right";
+  staticRender?: boolean;
 };
 
 const TextInput: React.FC<TextInputProps> = ({
   className = "",
   align = "left",
+  staticRender = false,
+  value,
   ...props
 }) => {
+  const alignmentClass = align === "right" ? "text-right" : "text-left";
+  const baseClassName = `w-full min-w-0 border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight text-black ${alignmentClass}`;
+
+  if (staticRender) {
+    return (
+      <div
+        className={`${baseClassName} overflow-hidden whitespace-nowrap py-[0.18em] text-ellipsis ${className}`}
+      >
+        {normalizeDisplayValue(value) || "\u00A0"}
+      </div>
+    );
+  }
+
   return (
     <input
       {...props}
-      className={`w-full min-w-0 border border-black bg-transparent px-[0.35em] py-[0.15em] text-[0.9em] leading-tight outline-none whitespace-nowrap overflow-hidden text-ellipsis ${
-        align === "right" ? "text-right" : "text-left"
-      } ${className}`}
+      value={value}
+      className={`${baseClassName} overflow-hidden whitespace-nowrap py-[0.15em] text-ellipsis outline-none ${className}`}
     />
   );
 };
 
-const TextAreaField: React.FC<TextareaHTMLAttributes<HTMLTextAreaElement>> = ({
+type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  staticRender?: boolean;
+};
+
+const TextAreaField: React.FC<TextAreaFieldProps> = ({
   className = "",
   style,
+  staticRender = false,
+  value,
   ...props
 }) => {
+  const sharedStyle: CSSProperties = {
+    minHeight: 0,
+    overflowWrap: "anywhere",
+    ...style,
+  };
+
+  if (staticRender) {
+    return (
+      <div
+        className={`w-full min-w-0 flex-1 overflow-hidden whitespace-pre-wrap break-words border border-black bg-transparent px-[0.35em] py-[0.2em] text-[0.9em] leading-tight text-black ${className}`}
+        style={sharedStyle}
+      >
+        {normalizeDisplayValue(value) || "\u00A0"}
+      </div>
+    );
+  }
+
   return (
     <textarea
       {...props}
+      value={value}
       className={`w-full min-w-0 flex-1 resize-none border border-black bg-transparent px-[0.35em] py-[0.2em] text-[0.9em] leading-tight outline-none ${className}`}
       style={{
-        minHeight: 0,
+        ...sharedStyle,
         overflow: "auto",
-        overflowWrap: "anywhere",
-        ...style,
       }}
     />
   );
@@ -104,6 +153,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
   fontSize = "clamp(7px, 0.8vw, 12px)",
 }) => {
   const editable = Boolean(onChange);
+  const staticRender = !editable;
+  const gstPaidByOptions = ["Consignor", "Consignee", "Transporter"] as const;
 
   return (
     <div
@@ -141,6 +192,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.lorryNo}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Lorry Number"
           maxLength={20}
           autoCapitalize="characters"
@@ -156,6 +208,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.invoiceNoDate}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Invoice and Date"
           maxLength={60}
           rows={2}
@@ -171,6 +224,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.deliveryAddress}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Delivery Address"
           maxLength={130}
           rows={3}
@@ -183,6 +237,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.phoneNo}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Phone Number"
           maxLength={15}
           inputMode="tel"
@@ -200,6 +255,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.insuranceCompany}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Company"
             maxLength={25}
           />
@@ -208,6 +264,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.insurancePolicyNo}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Policy No."
             maxLength={25}
           />
@@ -216,6 +273,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.insuranceDate}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Date"
             maxLength={10}
           />
@@ -224,6 +282,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.insuranceCertNo}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="DEC/CERT No."
             maxLength={25}
           />
@@ -232,6 +291,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.insuranceAmount}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Amount"
             maxLength={14}
             align="right"
@@ -245,6 +305,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           name="biltyNumber"
           value={formData.biltyNumber}
           readOnly
+          staticRender={staticRender}
           placeholder="Bilty Number"
           maxLength={22}
         />
@@ -255,24 +316,40 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
         label="GST Paid By:"
         className="justify-start"
       >
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.84em] leading-tight">
-          {(["Consignor", "Consignee", "Transporter"] as const).map((option) => (
-            <label
-              key={option}
-              className="inline-flex items-center gap-1 whitespace-nowrap"
-            >
-              <input
-                type="radio"
-                name="gstPaidBy"
-                value={option}
-                checked={formData.gstPaidBy === option}
-                onChange={onChange}
-                disabled={!editable}
-              />
-              {option}
-            </label>
-          ))}
-        </div>
+        {editable ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.84em] leading-tight">
+            {gstPaidByOptions.map((option) => (
+              <label
+                key={option}
+                className="inline-flex items-center gap-1 whitespace-nowrap"
+              >
+                <input
+                  type="radio"
+                  name="gstPaidBy"
+                  value={option}
+                  checked={formData.gstPaidBy === option}
+                  onChange={onChange}
+                  disabled={!editable}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.84em] leading-tight text-black">
+            {gstPaidByOptions.map((option) => (
+              <span
+                key={option}
+                className={`inline-flex items-center gap-1 whitespace-nowrap ${
+                  formData.gstPaidBy === option ? "font-semibold" : "opacity-70"
+                }`}
+              >
+                <span>{formData.gstPaidBy === option ? "◉" : "○"}</span>
+                {option}
+              </span>
+            ))}
+          </div>
+        )}
       </PositionedBox>
 
       <PositionedBox
@@ -285,6 +362,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.consignorAddress}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             maxLength={110}
             rows={3}
           />
@@ -293,6 +371,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.consignorGstin}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="GSTIN"
             maxLength={15}
             autoCapitalize="characters"
@@ -310,6 +389,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.consigneeAddress}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             maxLength={110}
             rows={3}
           />
@@ -318,6 +398,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.consigneeGstin}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="GSTIN"
             maxLength={15}
             autoCapitalize="characters"
@@ -331,6 +412,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.consignmentNo}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           maxLength={25}
         />
       </PositionedBox>
@@ -340,6 +422,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.biltyDate}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           maxLength={10}
         />
       </PositionedBox>
@@ -349,6 +432,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.from}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           maxLength={24}
         />
       </PositionedBox>
@@ -358,6 +442,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.to}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           maxLength={24}
         />
       </PositionedBox>
@@ -387,6 +472,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.packages}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Number"
             maxLength={20}
             rows={2}
@@ -396,6 +482,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.methodOfPacking}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Method"
             maxLength={25}
             rows={2}
@@ -405,6 +492,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.description}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Description"
             maxLength={55}
             rows={2}
@@ -414,6 +502,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.actualWt}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Actual Wt."
             maxLength={14}
             rows={2}
@@ -423,6 +512,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.chargedWt}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Charged Wt."
             maxLength={14}
             rows={2}
@@ -432,6 +522,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.rate}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Rate"
             maxLength={12}
             rows={2}
@@ -441,6 +532,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.amount}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             placeholder="Amount"
             maxLength={15}
             rows={2}
@@ -454,6 +546,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.freight}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Freight"
           maxLength={14}
           align="right"
@@ -466,6 +559,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.labour}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Labour"
           maxLength={14}
           align="right"
@@ -478,6 +572,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.gstCharges}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="GST Charges"
           maxLength={14}
           align="right"
@@ -490,6 +585,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.biltyCharges}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Bilty Charges"
           maxLength={14}
           align="right"
@@ -503,6 +599,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.grandTotal}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Grand Total"
           maxLength={14}
           align="right"
@@ -515,6 +612,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.advance}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Advance"
           maxLength={14}
           align="right"
@@ -527,6 +625,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.balanceAmt}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Balance Amt"
           maxLength={14}
           align="right"
@@ -540,6 +639,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.declaredValue}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Declared Value"
           maxLength={25}
         />
@@ -550,6 +650,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
           value={formData.driver}
           onChange={onChange}
           readOnly={!editable}
+          staticRender={staticRender}
           placeholder="Driver"
           maxLength={30}
         />
@@ -566,6 +667,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             value={formData.remarks}
             onChange={onChange}
             readOnly={!editable}
+            staticRender={staticRender}
             maxLength={80}
             rows={3}
           />
@@ -579,6 +681,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
               value={formData.bookingClerk}
               onChange={onChange}
               readOnly={!editable}
+              staticRender={staticRender}
               placeholder="Booking Clerk"
               maxLength={30}
             />

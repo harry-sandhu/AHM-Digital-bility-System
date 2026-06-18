@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
+import { clearBiltyDraft } from "../utils/biltyDraft";
 import BrandMark from "./BrandMark";
 
 const Navbar: React.FC = () => {
@@ -15,6 +16,7 @@ const Navbar: React.FC = () => {
 
   const handleStartBiltyFlow = () => {
     sessionStorage.removeItem(BILTY_TERMS_ACCEPTED_KEY);
+    clearBiltyDraft(user?.id);
     navigate("/bilty/terms");
   };
 
