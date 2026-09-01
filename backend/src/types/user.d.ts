@@ -5,4 +5,7 @@ export interface UserType {
   password: string;
   role: "admin" | "superadmin" | "user";
   isActive: boolean;
+  biltyAccessPaidAt?: string;
+  biltyAccessExpiresAt?: string;
+  biltyAccessAmount?: number;
 }

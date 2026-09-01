@@ -14,7 +14,7 @@ const BiltyTermsPage: React.FC = () => {
     }
 
     sessionStorage.setItem(BILTY_TERMS_ACCEPTED_KEY, "true");
-    navigate("/bilty");
+    navigate("/bilty/payment");
   };
 
   return (

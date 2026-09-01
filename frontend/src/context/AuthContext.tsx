@@ -23,6 +23,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   isInitializing: boolean;
   login: (token: string, user: AuthUser) => void;
+  updateUser: (user: AuthUser) => void;
   logout: () => void;
 };
 
@@ -64,6 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = (token: string, user: AuthUser) => {
     persistAuth({ token, user });
+  };
+
+  const updateUser = (user: AuthUser) => {
+    persistAuth({ token: auth.token, user });
   };
 
   const logout = () => {
@@ -117,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isAuthenticated: Boolean(auth.token),
       isInitializing,
       login,
+      updateUser,
       logout,
     }),
     [auth, isInitializing]

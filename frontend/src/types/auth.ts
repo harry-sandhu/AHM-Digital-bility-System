@@ -6,6 +6,9 @@ export interface AuthUser {
   phone: string;
   role: Role;
   isActive: boolean;
+  biltyAccessPaidAt?: string | null;
+  biltyAccessExpiresAt?: string | null;
+  biltyAccessAmount?: number;
 }
 
 export interface AuthPayload {

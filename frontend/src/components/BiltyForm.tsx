@@ -10,6 +10,23 @@ import {
 } from "../types/biltyForm";
 import { readBiltyDraft, writeBiltyDraft } from "../utils/biltyDraft";
 
+const formatDeadlineTime = (deadline?: string | null) => {
+  if (!deadline) {
+    return "midnight";
+  }
+
+  const parsedDeadline = new Date(deadline);
+
+  if (Number.isNaN(parsedDeadline.getTime())) {
+    return "midnight";
+  }
+
+  return parsedDeadline.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const BiltyForm: React.FC = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState<BiltyFormState>({
@@ -22,6 +39,9 @@ const BiltyForm: React.FC = () => {
   const [isPreparing, setIsPreparing] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedBilty, setHasSavedBilty] = useState(false);
+  const [deadlineAt, setDeadlineAt] = useState<string | null>(
+    user?.biltyAccessExpiresAt || null
+  );
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -29,6 +49,10 @@ const BiltyForm: React.FC = () => {
       bookingClerk: prev.bookingClerk || user?.name || "",
     }));
   }, [user?.name]);
+
+  useEffect(() => {
+    setDeadlineAt(user?.biltyAccessExpiresAt || null);
+  }, [user?.biltyAccessExpiresAt]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -56,6 +80,7 @@ const BiltyForm: React.FC = () => {
           bookingClerk: storedDraft.formData.bookingClerk || user.name || "",
         });
         setHasSavedBilty(storedDraft.hasSavedBilty);
+        setDeadlineAt(user.biltyAccessExpiresAt || null);
         setStatusMessage(
           storedDraft.hasSavedBilty
             ? "Resumed your last saved bilty. If you change anything, save it again before downloading."
@@ -75,12 +100,17 @@ const BiltyForm: React.FC = () => {
         }
 
         setBiltyId(String(response.data.biltyId));
+        setDeadlineAt(response.data.expiresAt || user.biltyAccessExpiresAt || null);
         setFormData((prev) => ({
           ...prev,
           biltyNumber: response.data.biltyNumber,
           bookingClerk: prev.bookingClerk || user.name || "",
         }));
-        setStatusMessage("Bilty number reserved. Fill the form and save it.");
+        setStatusMessage(
+          `Bilty number reserved. Fill and save before ${formatDeadlineTime(
+            response.data.expiresAt || user.biltyAccessExpiresAt || null
+          )}.`
+        );
       } catch (err: any) {
         if (!isMounted) {
           return;
@@ -169,6 +199,11 @@ const BiltyForm: React.FC = () => {
                 ? "Preparing bilty workspace..."
                 : `Reserved bilty no: ${formData.biltyNumber || "—"}`}
             </p>
+            {deadlineAt ? (
+              <p className="mt-1 text-sm font-medium text-amber-700">
+                Save before {formatDeadlineTime(deadlineAt)} today.
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-slate-500">
               Draft changes stay saved in this browser until you start a new bilty. Save the form first, then download the bilty as a 2-page PDF or PNG set with page 1 as the bilty and page 2 as the terms &amp; conditions.
             </p>

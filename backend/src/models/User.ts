@@ -8,6 +8,9 @@ export interface IUser extends Document {
   password: string;
   role: Role;
   isActive: boolean;
+  biltyAccessPaidAt?: Date;
+  biltyAccessExpiresAt?: Date;
+  biltyAccessAmount?: number;
 }
 
 const userSchema = new Schema<IUser>(
@@ -21,6 +24,9 @@ const userSchema = new Schema<IUser>(
       default: "user",
     },
     isActive: { type: Boolean, default: true },
+    biltyAccessPaidAt: { type: Date },
+    biltyAccessExpiresAt: { type: Date },
+    biltyAccessAmount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

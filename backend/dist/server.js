@@ -25,6 +25,9 @@ dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+app.get("/", (_req, res) => {
+    res.send("server running ok");
+});
 app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
 });

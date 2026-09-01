@@ -12,6 +12,7 @@ import LoginPage from "./Pages/LoginPage";
 import SignupPage from "./Pages/SignupPage";
 import HomePage from "./Pages/HomePage";
 import BiltyPage from "./Pages/BiltyPage";
+import BiltyPaymentPage from "./Pages/BiltyPaymentPage";
 import UsersPage from "./Pages/UsersPage";
 import CreateAdminPage from "./Pages/CreateAdminPage";
 import BiltyTermsPage from "./Pages/BiltyTermsPage";
@@ -68,6 +69,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <BiltyTermsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bilty/payment"
+        element={
+          <ProtectedRoute>
+            <BiltyPaymentPage />
           </ProtectedRoute>
         }
       />

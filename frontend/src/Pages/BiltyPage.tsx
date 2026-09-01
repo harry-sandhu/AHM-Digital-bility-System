@@ -2,14 +2,26 @@ import React from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import BiltyForm from "../components/BiltyForm";
+import { useAuth } from "../context/AuthContext";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
 
 const BiltyPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const hasAcceptedTerms = sessionStorage.getItem(BILTY_TERMS_ACCEPTED_KEY) === "true";
+  const paymentDeadline = user?.biltyAccessExpiresAt
+    ? new Date(user.biltyAccessExpiresAt)
+    : null;
+  const hasActivePayment = Boolean(
+    paymentDeadline && paymentDeadline.getTime() >= Date.now()
+  );
 
   if (!hasAcceptedTerms) {
     return <Navigate to="/bilty/terms" replace />;
+  }
+
+  if (!hasActivePayment) {
+    return <Navigate to="/bilty/payment" replace />;
   }
 
   return (
@@ -24,7 +36,7 @@ const BiltyPage: React.FC = () => {
               </p>
               <h1 className="mt-3 text-3xl font-bold text-slate-900">Create and save your bilty</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                The bilty layout remains the same as your physical format. After saving, you can download a 2-page PDF or PNG copy with the bilty on page 1 and terms & conditions on page 2.
+                The bilty layout remains the same as your physical format. After payment and saving, you can download a 2-page PDF or PNG copy with the bilty on page 1 and terms & conditions on page 2.
               </p>
             </div>
             <button

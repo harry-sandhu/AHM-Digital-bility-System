@@ -32,6 +32,40 @@ const normalizeDisplayValue = (value: unknown) => {
   return String(value);
 };
 
+const getFittedTextStyle = (
+  value: unknown,
+  multiline = false
+): CSSProperties => {
+  const text = normalizeDisplayValue(value).replace(/\s+/g, " ").trim();
+  const length = text.length;
+
+  if (!length) {
+    return {};
+  }
+
+  if (multiline) {
+    if (length > 120) {
+      return { fontSize: "0.72em", lineHeight: 1.05 };
+    }
+
+    if (length > 70) {
+      return { fontSize: "0.8em", lineHeight: 1.08 };
+    }
+
+    return { fontSize: "0.88em", lineHeight: 1.12 };
+  }
+
+  if (length > 40) {
+    return { fontSize: "0.74em", lineHeight: 1.05 };
+  }
+
+  if (length > 24) {
+    return { fontSize: "0.82em", lineHeight: 1.05 };
+  }
+
+  return { fontSize: "0.9em", lineHeight: 1.05 };
+};
+
 type PositionedBoxProps = {
   style: CSSProperties;
   label?: string;
@@ -72,6 +106,7 @@ const TextInput: React.FC<TextInputProps> = ({
   align = "left",
   staticRender = false,
   value,
+  style,
   ...props
 }) => {
   const alignmentClass = align === "right" ? "text-right" : "text-left";
@@ -80,7 +115,9 @@ const TextInput: React.FC<TextInputProps> = ({
   if (staticRender) {
     return (
       <div
-        className={`${baseClassName} overflow-hidden whitespace-nowrap py-[0.18em] text-ellipsis ${className}`}
+        className={`${baseClassName} flex min-h-[1.7em] items-center overflow-hidden whitespace-normal break-words py-[0.18em] ${className}`}
+        style={{ ...style, ...getFittedTextStyle(value) }}
+        title={normalizeDisplayValue(value)}
       >
         {normalizeDisplayValue(value) || "\u00A0"}
       </div>
@@ -91,6 +128,7 @@ const TextInput: React.FC<TextInputProps> = ({
     <input
       {...props}
       value={value}
+      style={style}
       className={`${baseClassName} overflow-hidden whitespace-nowrap py-[0.15em] text-ellipsis outline-none ${className}`}
     />
   );
@@ -117,7 +155,8 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
     return (
       <div
         className={`w-full min-w-0 flex-1 overflow-hidden whitespace-pre-wrap break-words border border-black bg-transparent px-[0.35em] py-[0.2em] text-[0.9em] leading-tight text-black ${className}`}
-        style={sharedStyle}
+        style={{ ...sharedStyle, ...getFittedTextStyle(value, true) }}
+        title={normalizeDisplayValue(value)}
       >
         {normalizeDisplayValue(value) || "\u00A0"}
       </div>
@@ -690,13 +729,13 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
       </PositionedBox>
 
       <PositionedBox style={boxStyle(0.87, 0.05, 0.4, 0.05)}>
-        <div className="h-full overflow-hidden break-words text-[0.9em] leading-tight">
-          Footer Left
+        <div className="h-full overflow-hidden break-words text-[0.9em] leading-tight text-transparent">
+          &nbsp;
         </div>
       </PositionedBox>
       <PositionedBox style={boxStyle(0.87, 0.55, 0.4, 0.05)}>
-        <div className="h-full overflow-hidden break-words text-[0.9em] leading-tight">
-          Footer Right
+        <div className="h-full overflow-hidden break-words text-[0.9em] leading-tight text-transparent">
+          &nbsp;
         </div>
       </PositionedBox>
     </div>

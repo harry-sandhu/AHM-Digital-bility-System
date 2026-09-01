@@ -23,20 +23,23 @@ const sanitizeUser = (user) => ({
     phone: user.phone,
     role: user.role,
     isActive: user.isActive,
+    biltyAccessPaidAt: user.biltyAccessPaidAt
+        ? new Date(user.biltyAccessPaidAt).toISOString()
+        : null,
+    biltyAccessExpiresAt: user.biltyAccessExpiresAt
+        ? new Date(user.biltyAccessExpiresAt).toISOString()
+        : null,
+    biltyAccessAmount: typeof user.biltyAccessAmount === "number" ? user.biltyAccessAmount : 0,
 });
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, phone, password } = req.body;
     const trimmedName = name === null || name === void 0 ? void 0 : name.trim();
     const normalizedPhone = phone ? (0, phoneUtils_1.normalizePhone)(phone) : "";
     if (!trimmedName || !normalizedPhone || !password) {
-        return res
-            .status(400)
-            .json({ error: "Name, phone and password are required" });
+        return res.status(400).json({ error: "Name, phone and password are required" });
     }
     if (!(0, phoneUtils_1.isPhoneLengthValid)(normalizedPhone)) {
-        return res
-            .status(400)
-            .json({ error: "Phone number must contain 10 to 15 digits" });
+        return res.status(400).json({ error: "Phone number must contain 10 to 15 digits" });
     }
     try {
         const existing = yield User_1.default.findOne({ phone: normalizedPhone });
@@ -56,8 +59,12 @@ const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             user: sanitizeUser(user),
         });
     }
-    catch (_a) {
-        res.status(500).json({ error: "Registration failed" });
+    catch (error) {
+        console.error("❌ REGISTRATION ERROR:", error);
+        res.status(500).json({
+            error: "Registration failed",
+            details: error instanceof Error ? error.message : error,
+        });
     }
 });
 exports.register = register;
@@ -68,9 +75,7 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         return res.status(400).json({ error: "Phone and password are required" });
     }
     if (!(0, phoneUtils_1.isPhoneLengthValid)(normalizedPhone)) {
-        return res
-            .status(400)
-            .json({ error: "Phone number must contain 10 to 15 digits" });
+        return res.status(400).json({ error: "Phone number must contain 10 to 15 digits" });
     }
     try {
         const user = yield User_1.default.findOne({ phone: normalizedPhone });

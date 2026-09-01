@@ -11,6 +11,9 @@ const userSchema = new mongoose_1.Schema({
         default: "user",
     },
     isActive: { type: Boolean, default: true },
+    biltyAccessPaidAt: { type: Date },
+    biltyAccessExpiresAt: { type: Date },
+    biltyAccessAmount: { type: Number, default: 0 },
 }, {
     timestamps: true,
 });

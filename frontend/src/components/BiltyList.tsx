@@ -18,6 +18,11 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
   const hasDocumentData = Object.values(normalizedFormData).some((value) =>
     String(value || "").trim().length > 0
   );
+  const status =
+    bilty.status ||
+    (bilty.expiresAt && new Date(bilty.expiresAt).getTime() < Date.now()
+      ? "expired"
+      : "draft");
 
   return (
     <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
@@ -33,6 +38,15 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
           <div className="rounded-2xl bg-slate-100 px-3 py-2 text-right text-xs text-slate-500">
             {bilty.createdAt ? new Date(bilty.createdAt).toLocaleString() : "No date"}
           </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              status === "expired"
+                ? "bg-rose-100 text-rose-700"
+                : "bg-emerald-100 text-emerald-700"
+            }`}
+          >
+            {status === "expired" ? "Expired" : "Active"}
+          </span>
           <BiltyDownloadButtons
             biltyNumber={bilty.biltyNumber}
             formData={normalizedFormData}
@@ -64,6 +78,17 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
             {bilty.formData?.from || "—"} → {bilty.formData?.to || "—"}
           </p>
         </div>
+        {bilty.expiresAt ? (
+          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
+            <p className="font-semibold text-slate-900">Deadline</p>
+            <p className="mt-1">
+              {new Date(bilty.expiresAt).toLocaleString([], {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

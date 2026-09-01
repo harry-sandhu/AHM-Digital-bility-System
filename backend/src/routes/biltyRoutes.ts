@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   generateBilty,
+  purchaseBiltyAccess,
   updateBilty,
   getAllBilty,
   getMyBilty,
@@ -10,6 +11,7 @@ import authorize from "../middleware/authorize";
 
 const router = Router();
 
+router.post("/pay", authMiddleware, purchaseBiltyAccess);
 router.get("/generate", authMiddleware, generateBilty);
 router.get("/my", authMiddleware, getMyBilty);
 router.get(

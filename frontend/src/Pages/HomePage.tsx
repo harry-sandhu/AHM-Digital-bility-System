@@ -9,11 +9,29 @@ import { clearBiltyDraft } from "../utils/biltyDraft";
 const HomePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const hasAcceptedTerms =
+    sessionStorage.getItem(BILTY_TERMS_ACCEPTED_KEY) === "true";
+  const paymentDeadline = user?.biltyAccessExpiresAt
+    ? new Date(user.biltyAccessExpiresAt)
+    : null;
+  const hasActivePayment = Boolean(
+    paymentDeadline && paymentDeadline.getTime() >= Date.now()
+  );
+  const paymentAmount = user?.biltyAccessAmount || 300;
 
   const handleStartBiltyFlow = () => {
-    sessionStorage.removeItem(BILTY_TERMS_ACCEPTED_KEY);
-    clearBiltyDraft(user?.id);
-    navigate("/bilty/terms");
+    if (!hasAcceptedTerms) {
+      clearBiltyDraft(user?.id);
+      navigate("/bilty/terms");
+      return;
+    }
+
+    if (!hasActivePayment) {
+      navigate("/bilty/payment");
+      return;
+    }
+
+    navigate("/bilty");
   };
 
   const cards = [
@@ -31,6 +49,13 @@ const HomePage: React.FC = () => {
       title: "Mode",
       value: "Digital + Download",
       description: "Create digitally and download as PDF or PNG whenever needed.",
+    },
+    {
+      title: "Payment",
+      value: hasActivePayment ? "Active" : "₹300",
+      description: hasActivePayment
+        ? `Bilty access is active until ${paymentDeadline?.toLocaleString() || "midnight"}.`
+        : "Payment is required before bilty number generation.",
     },
   ];
 
@@ -53,14 +78,26 @@ const HomePage: React.FC = () => {
                 {user?.role === "admin" &&
                   "Review all users and bilty records, and support transport operations with a faster digital workflow."}
                 {user?.role === "user" &&
-                  "Create your bilty after accepting the terms & conditions, save it digitally, and download the final 2-page PDF or PNG copy anytime."}
+                  "Create your bilty after accepting the terms & conditions, complete payment, save it digitally, and download the final 2-page PDF or PNG copy anytime."}
               </p>
+              <div className="mt-6 rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-800">
+                {hasActivePayment ? (
+                  <span>
+                    Bilty access is active for ₹{paymentAmount}. Please fill and save the bilty before{" "}
+                    {paymentDeadline?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || "midnight"}.
+                  </span>
+                ) : (
+                  <span>
+                    Next step: review the terms, pay ₹{paymentAmount}, then generate the bilty number.
+                  </span>
+                )}
+              </div>
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   onClick={handleStartBiltyFlow}
                   className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
                 >
-                  Start New Bilty
+                  {hasActivePayment ? "Continue Bilty Flow" : "Start New Bilty"}
                 </button>
                 {(user?.role === "admin" || user?.role === "superadmin") && (
                   <button
@@ -73,7 +110,7 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {cards.map((card) => (
                 <div
                   key={card.title}
