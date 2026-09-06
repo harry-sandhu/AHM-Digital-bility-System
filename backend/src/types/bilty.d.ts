@@ -1,5 +1,6 @@
 export interface BiltyType {
   biltyNumber: string;
+  consignmentNo?: number;
   createdBy: string;
   formData?: Record<string, unknown>;
   status?: "draft" | "expired";

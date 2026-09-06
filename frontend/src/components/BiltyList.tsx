@@ -48,8 +48,6 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
             {status === "expired" ? "Expired" : "Active"}
           </span>
           <BiltyDownloadButtons
-            biltyNumber={bilty.biltyNumber}
-            formData={normalizedFormData}
             disabled={!hasDocumentData}
             size="sm"
           />
@@ -90,6 +88,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
           </div>
         ) : null}
       </div>
+
     </div>
   );
 };
@@ -152,7 +151,7 @@ const BiltyList: React.FC = () => {
 
       <div className="grid gap-4">
         {bilties.map((bilty) => (
-          <BiltyCard key={bilty._id} bilty={bilty} role={role} />
+          <BiltyCard key={bilty._id} bilty={bilty} role={role || undefined} />
         ))}
       </div>
     </div>

@@ -1,6 +1,7 @@
 export interface BiltyRecord {
   _id: string;
   biltyNumber: string;
+  consignmentNo?: number;
   status?: "draft" | "expired";
   paymentAmount?: number;
   paymentPaidAt?: string;

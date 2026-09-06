@@ -7,6 +7,7 @@ export const requestBiltyNumber = () =>
     message: string;
     biltyId: string;
     biltyNumber: string;
+    consignmentNo: number;
     expiresAt: string;
     paymentAmount: number;
   }>("/bilty/generate");

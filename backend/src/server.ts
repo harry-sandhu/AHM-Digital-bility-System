@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import biltyRoutes from "./routes/biltyRoutes";
 import userRoutes from "./routes/userRoutes";
+import numberRangeRoutes from "./routes/numberRangeRoutes";
 import errorHandler from "./middleware/errorMiddleware";
 import { seedSuperAdmin } from "./seeder/seedSuperAdmin";
 
@@ -26,6 +27,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/bilty", biltyRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/number-ranges", numberRangeRoutes);
 
 app.use(errorHandler);
 

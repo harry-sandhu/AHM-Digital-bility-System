@@ -16,6 +16,7 @@ exports.getAllBilty = exports.getMyBilty = exports.updateBilty = exports.purchas
 const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const User_1 = __importDefault(require("../models/User"));
+const numberRange_1 = require("../utils/numberRange");
 const canManageAllBilties = (role) => role === "superadmin" || role === "admin";
 const BILTY_ACCESS_AMOUNT = 300;
 const getLocalMidnightDeadline = (fromDate = new Date()) => {
@@ -58,9 +59,20 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 message: "Bilty already reserved",
                 biltyId: activeBilty._id,
                 biltyNumber: activeBilty.biltyNumber,
+                consignmentNo: activeBilty.consignmentNo,
                 expiresAt: activeBilty.expiresAt,
                 paymentAmount: activeBilty.paymentAmount || req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
             });
+        }
+        let consignmentNo;
+        try {
+            consignmentNo = yield (0, numberRange_1.allocateConsignmentNumber)(req.user._id);
+        }
+        catch (error) {
+            if (error instanceof Error && error.message === numberRange_1.NO_CONSIGNMENT_NUMBERS_ERROR) {
+                return res.status(409).json({ error: numberRange_1.NO_CONSIGNMENT_NUMBERS_ERROR });
+            }
+            throw error;
         }
         const prefix = `AHM-${new Date().getFullYear()}`;
         const counter = yield BiltyCounter_1.default.findOneAndUpdate({ prefix }, { $inc: { counter: 1 } }, { new: true, upsert: true, setDefaultsOnInsert: true });
@@ -70,6 +82,7 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             : getLocalMidnightDeadline();
         const bilty = yield bilty_1.default.create({
             biltyNumber,
+            consignmentNo,
             createdBy: req.user._id,
             formData: {},
             status: getBiltyStatus(expiresAt),
@@ -82,6 +95,7 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             message: "Bilty reserved",
             biltyId: bilty._id,
             biltyNumber,
+            consignmentNo,
             expiresAt,
             paymentAmount: bilty.paymentAmount,
         });
@@ -129,6 +143,7 @@ const purchaseBiltyAccess = (req, res) => __awaiter(void 0, void 0, void 0, func
 });
 exports.purchaseBiltyAccess = purchaseBiltyAccess;
 const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!req.user) {
         return res.status(401).json({ error: "Authentication required" });
     }
@@ -152,7 +167,7 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 error: "Bilty expired. Please create a new bilty after paying again.",
             });
         }
-        bilty.formData = formData;
+        bilty.formData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : "") });
         bilty.status = "draft";
         yield bilty.save();
         const populatedBilty = yield bilty_1.default.findById(bilty._id).populate("createdBy", "name phone role");
@@ -161,7 +176,7 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             bilty: populatedBilty,
         });
     }
-    catch (_a) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to update bilty" });
     }
 });

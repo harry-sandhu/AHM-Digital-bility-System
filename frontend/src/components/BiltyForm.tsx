@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { createBilty, requestBiltyNumber } from "../api/biltyApi";
 import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons from "./BiltyDownloadButtons";
-import TermsDocument from "./TermsDocument";
 import { useAuth } from "../context/AuthContext";
 import {
   initialBiltyFormData,
@@ -104,6 +103,7 @@ const BiltyForm: React.FC = () => {
         setFormData((prev) => ({
           ...prev,
           biltyNumber: response.data.biltyNumber,
+          consignmentNo: String(response.data.consignmentNo),
           bookingClerk: prev.bookingClerk || user.name || "",
         }));
         setStatusMessage(
@@ -150,6 +150,10 @@ const BiltyForm: React.FC = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+
+    if (name === "consignmentNo") {
+      return;
+    }
 
     setErrorMessage("");
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -211,8 +215,6 @@ const BiltyForm: React.FC = () => {
 
           <div className="flex flex-wrap items-start gap-3">
             <BiltyDownloadButtons
-              biltyNumber={formData.biltyNumber}
-              formData={formData}
               disabled={!hasSavedBilty}
               showPrintButton
             />
@@ -237,19 +239,11 @@ const BiltyForm: React.FC = () => {
           </div>
         ) : null}
 
-        <BiltyDocument formData={formData} onChange={handleChange} />
-
-        <div className="no-print mt-6 rounded-[28px] border border-dashed border-slate-300 bg-white/80 p-5 text-sm leading-7 text-slate-600 shadow-sm">
-          <p className="font-semibold text-slate-900">Download note</p>
-          <p className="mt-2">
-            Use <span className="font-semibold">Download PDF (2 Pages)</span> for one PDF file, or use <span className="font-semibold">Download Images (PNG)</span> to get page 1 as the bilty and page 2 as the terms &amp; conditions image.
-          </p>
-          <p className="mt-2">
-            If needed, you can still use <span className="font-semibold">Print 2 Pages</span> to open the browser print dialog.
-          </p>
+        <div className="print-pages">
+          <div className="print-page print-bilty-page">
+            <BiltyDocument formData={formData} onChange={handleChange} />
+          </div>
         </div>
-
-        <TermsDocument printable className="print-only print-page-break mt-8" />
       </div>
     </form>
   );

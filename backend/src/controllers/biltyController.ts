@@ -3,6 +3,10 @@ import Bilty from "../models/bilty";
 import BiltyCounter from "../models/BiltyCounter";
 import User from "../models/User";
 import { AuthRequest } from "../middleware/auth";
+import {
+  allocateConsignmentNumber,
+  NO_CONSIGNMENT_NUMBERS_ERROR,
+} from "../utils/numberRange";
 
 const canManageAllBilties = (role?: string) =>
   role === "superadmin" || role === "admin";
@@ -63,10 +67,23 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
         message: "Bilty already reserved",
         biltyId: activeBilty._id,
         biltyNumber: activeBilty.biltyNumber,
+        consignmentNo: activeBilty.consignmentNo,
         expiresAt: activeBilty.expiresAt,
         paymentAmount:
           activeBilty.paymentAmount || req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
       });
+    }
+
+    let consignmentNo: number;
+
+    try {
+      consignmentNo = await allocateConsignmentNumber(req.user._id);
+    } catch (error) {
+      if (error instanceof Error && error.message === NO_CONSIGNMENT_NUMBERS_ERROR) {
+        return res.status(409).json({ error: NO_CONSIGNMENT_NUMBERS_ERROR });
+      }
+
+      throw error;
     }
 
     const prefix = `AHM-${new Date().getFullYear()}`;
@@ -84,6 +101,7 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
 
     const bilty = await Bilty.create({
       biltyNumber,
+      consignmentNo,
       createdBy: req.user._id,
       formData: {},
       status: getBiltyStatus(expiresAt),
@@ -97,6 +115,7 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
       message: "Bilty reserved",
       biltyId: bilty._id,
       biltyNumber,
+      consignmentNo,
       expiresAt,
       paymentAmount: bilty.paymentAmount,
     });
@@ -195,7 +214,10 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    bilty.formData = formData;
+    bilty.formData = {
+      ...(formData && typeof formData === "object" ? formData : {}),
+      consignmentNo: String(bilty.consignmentNo ?? ""),
+    };
     bilty.status = "draft";
     await bilty.save();
 

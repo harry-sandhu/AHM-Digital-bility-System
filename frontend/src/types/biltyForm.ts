@@ -10,6 +10,7 @@ export type BiltyFormState = {
   insuranceAmount: string;
   biltyNumber: string;
   gstPaidBy: string;
+  basisOfBooking: string;
   consignorAddress: string;
   consignorGstin: string;
   consigneeAddress: string;
@@ -50,6 +51,7 @@ export const initialBiltyFormData: BiltyFormState = {
   insuranceAmount: "",
   biltyNumber: "",
   gstPaidBy: "",
+  basisOfBooking: "",
   consignorAddress: "",
   consignorGstin: "",
   consigneeAddress: "",

@@ -53,12 +53,20 @@ const Navbar: React.FC = () => {
             </button>
           )}
           {user?.role === "superadmin" && (
-            <button
-              onClick={() => navigate("/admins/new")}
-              className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
-            >
-              Create Admin
-            </button>
+            <>
+              <button
+                onClick={() => navigate("/admins/new")}
+                className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+              >
+                Create Admin
+              </button>
+              <button
+                onClick={() => navigate("/superadmin")}
+                className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+              >
+                Number Ranges
+              </button>
+            </>
           )}
           <button
             onClick={handleLogout}
