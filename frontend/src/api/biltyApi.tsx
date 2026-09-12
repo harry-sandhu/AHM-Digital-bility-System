@@ -31,3 +31,6 @@ export const createBilty = (data: {
 export const getMyBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/my");
 
 export const getAllBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/all");
+
+export const getBilty = (id: string) =>
+  axiosInstance.get<BiltyRecord>(`/bilty/${id}`);

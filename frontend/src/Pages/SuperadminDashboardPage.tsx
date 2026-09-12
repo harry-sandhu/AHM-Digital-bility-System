@@ -4,6 +4,7 @@ import { getAllBilties } from "../api/biltyApi";
 import { getAllUsers } from "../api/usersApi";
 import {
   createRange,
+  deleteRange,
   getRanges,
   updateRange,
 } from "../api/numberRangesApi";
@@ -25,6 +26,7 @@ const SuperadminDashboardPage: React.FC = () => {
   const [userId, setUserId] = useState("");
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
+  const [editingRangeId, setEditingRangeId] = useState<string | null>(null);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -65,7 +67,43 @@ const SuperadminDashboardPage: React.FC = () => {
     setUserId("");
     setRangeStart("");
     setRangeEnd("");
+    setEditingRangeId(null);
     setShowForm(false);
+  };
+
+  const handleEdit = (range: NumberRange) => {
+    setEditingRangeId(range._id);
+    setLabel(range.label || "");
+    setScope(range.scope);
+    setUserId(
+      range.userId && typeof range.userId !== "string" ? range.userId._id : range.userId || ""
+    );
+    setRangeStart(String(range.rangeStart));
+    setRangeEnd(String(range.rangeEnd));
+    setShowForm(true);
+    setError("");
+    setActionMessage("");
+  };
+
+  const handleDelete = async (range: NumberRange) => {
+    if (range.nextNumber !== range.rangeStart) {
+      setError("A range can only be deleted before it issues its first number.");
+      return;
+    }
+
+    if (!window.confirm("Delete this number range?")) {
+      return;
+    }
+
+    setError("");
+    setActionMessage("");
+    try {
+      await deleteRange(range._id);
+      setActionMessage("Number range deleted.");
+      await loadDashboard();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to delete number range"));
+    }
   };
 
   const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -87,14 +125,23 @@ const SuperadminDashboardPage: React.FC = () => {
 
     setIsSaving(true);
     try {
-      await createRange({
-        label: label.trim() || undefined,
-        scope,
-        userId: scope === "personal" ? userId : undefined,
-        rangeStart: start,
-        rangeEnd: end,
-      });
-      setActionMessage("Number range created successfully.");
+      if (editingRangeId) {
+        await updateRange(editingRangeId, {
+          label: label.trim() || undefined,
+          userId: scope === "personal" ? userId : undefined,
+          rangeEnd: end,
+        });
+        setActionMessage("Number range updated successfully.");
+      } else {
+        await createRange({
+          label: label.trim() || undefined,
+          scope,
+          userId: scope === "personal" ? userId : undefined,
+          rangeStart: start,
+          rangeEnd: end,
+        });
+        setActionMessage("Number range created successfully.");
+      }
       resetForm();
       await loadDashboard();
     } catch (err) {
@@ -175,10 +222,12 @@ const SuperadminDashboardPage: React.FC = () => {
 
         {showForm ? (
           <form onSubmit={handleCreate} className="card mt-8 p-6">
-            <h2 className="text-2xl font-bold text-slate-900">Create number range</h2>
+            <h2 className="text-2xl font-bold text-slate-900">
+              {editingRangeId ? "Edit number range" : "Create number range"}
+            </h2>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               <input className="input" placeholder="Label (optional)" value={label} onChange={(event) => setLabel(event.target.value)} />
-              <select className="input" value={scope} onChange={(event) => setScope(event.target.value as NumberRangeScope)}>
+              <select className="input" value={scope} disabled={Boolean(editingRangeId)} onChange={(event) => setScope(event.target.value as NumberRangeScope)}>
                 <option value="master">Master</option>
                 <option value="personal">Personal</option>
               </select>
@@ -192,12 +241,12 @@ const SuperadminDashboardPage: React.FC = () => {
                   ))}
                 </select>
               ) : null}
-              <input className="input" type="number" min="1000" placeholder="Range start" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} required />
+              <input className="input" type="number" min="1000" placeholder="Range start" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} disabled={Boolean(editingRangeId)} required />
               <input className="input" type="number" min="1000" placeholder="Range end" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} required />
             </div>
             <div className="mt-5 flex gap-3">
               <button type="submit" disabled={isSaving} className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
-                {isSaving ? "Creating..." : "Create Range"}
+                {isSaving ? "Saving..." : editingRangeId ? "Save Changes" : "Create Range"}
               </button>
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">
                 Cancel
@@ -226,7 +275,23 @@ const SuperadminDashboardPage: React.FC = () => {
                       <td className="px-5 py-4">{range.nextNumber}</td>
                       <td className="px-5 py-4">{range.remaining}</td>
                       <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${range.isExhausted ? "bg-slate-100 text-slate-600" : range.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{range.isExhausted ? "Exhausted" : range.isActive ? "Active" : "Inactive"}</span></td>
-                      <td className="px-5 py-4">{range.isActive ? <button type="button" onClick={() => void handleDeactivate(range)} className="rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white">Deactivate</button> : <span className="text-slate-400">—</span>}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => handleEdit(range)} className="rounded-full bg-amber-500 px-3 py-2 text-xs font-semibold text-white">
+                            Edit
+                          </button>
+                          {range.isActive ? (
+                            <button type="button" onClick={() => void handleDeactivate(range)} className="rounded-full bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+                              Deactivate
+                            </button>
+                          ) : null}
+                          {range.nextNumber === range.rangeStart ? (
+                            <button type="button" onClick={() => void handleDelete(range)} className="rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-600">
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

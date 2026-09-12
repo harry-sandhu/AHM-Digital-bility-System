@@ -3,6 +3,7 @@ import {
   generateBilty,
   purchaseBiltyAccess,
   updateBilty,
+  getBiltyById,
   getAllBilty,
   getMyBilty,
 } from "../controllers/biltyController";
@@ -17,9 +18,10 @@ router.get("/my", authMiddleware, getMyBilty);
 router.get(
   "/all",
   authMiddleware,
-  authorize("superadmin", "admin"),
+  authorize("superadmin"),
   getAllBilty
 );
+router.get("/:id", authMiddleware, getBiltyById);
 router.put("/:id", authMiddleware, updateBilty);
 
 export default router;

@@ -17,6 +17,7 @@ import UsersPage from "./Pages/UsersPage";
 import CreateAdminPage from "./Pages/CreateAdminPage";
 import BiltyTermsPage from "./Pages/BiltyTermsPage";
 import SuperadminDashboardPage from "./Pages/SuperadminDashboardPage";
+import BiltyEditPage from "./Pages/BiltyEditPage";
 
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
@@ -86,6 +87,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <BiltyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bilty/edit/:id"
+        element={
+          <ProtectedRoute allowedRoles={["superadmin"]}>
+            <BiltyEditPage />
           </ProtectedRoute>
         }
       />

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllBilty = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
+exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
 const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const User_1 = __importDefault(require("../models/User"));
@@ -52,20 +52,6 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (isPastDeadline(req.user.biltyAccessExpiresAt)) {
             return res.status(402).json({
                 error: "Payment required before bilty generation",
-            });
-        }
-        const activeBilty = yield bilty_1.default.findOne({
-            createdBy: req.user._id,
-            expiresAt: { $gte: new Date() },
-        }).sort({ createdAt: -1 });
-        if (activeBilty) {
-            return res.status(200).json({
-                message: "Bilty already reserved",
-                biltyId: activeBilty._id,
-                biltyNumber: activeBilty.biltyNumber,
-                consignmentNo: activeBilty.consignmentNo,
-                expiresAt: activeBilty.expiresAt,
-                paymentAmount: activeBilty.paymentAmount || req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
             });
         }
         let consignmentNo;
@@ -180,8 +166,9 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 error: "Bilty expired. Please create a new bilty after paying again.",
             });
         }
+        const isOwner = String(bilty.createdBy) === String(req.user._id);
         const nextFormData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : "") });
-        if (typeof req.user.biltyAccessFreightAmount === "number") {
+        if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
             nextFormData.freight = String(req.user.biltyAccessFreightAmount);
         }
         bilty.formData = nextFormData;
@@ -215,6 +202,29 @@ const getMyBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () 
     }
 });
 exports.getMyBilty = getMyBilty;
+const getBiltyById = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+    try {
+        const bilty = yield bilty_1.default.findById(req.params.id).populate("createdBy", "name phone role");
+        if (!bilty) {
+            return res.status(404).json({ error: "Bilty not found" });
+        }
+        if (String(((_a = bilty.createdBy) === null || _a === void 0 ? void 0 : _a._id) || bilty.createdBy) !== String(req.user._id) &&
+            !canManageAllBilties(req.user.role)) {
+            return res.status(403).json({ error: "Access denied" });
+        }
+        return res.json(Object.assign(Object.assign({}, bilty.toObject()), { status: bilty.expiresAt && isPastDeadline(bilty.expiresAt)
+                ? "expired"
+                : bilty.status || "draft" }));
+    }
+    catch (_b) {
+        return res.status(500).json({ error: "Failed to fetch bilty" });
+    }
+});
+exports.getBiltyById = getBiltyById;
 const getAllBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const biltys = yield bilty_1.default.find()

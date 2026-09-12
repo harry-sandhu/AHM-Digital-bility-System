@@ -63,23 +63,6 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const activeBilty = await Bilty.findOne({
-      createdBy: req.user._id,
-      expiresAt: { $gte: new Date() },
-    }).sort({ createdAt: -1 });
-
-    if (activeBilty) {
-      return res.status(200).json({
-        message: "Bilty already reserved",
-        biltyId: activeBilty._id,
-        biltyNumber: activeBilty.biltyNumber,
-        consignmentNo: activeBilty.consignmentNo,
-        expiresAt: activeBilty.expiresAt,
-        paymentAmount:
-          activeBilty.paymentAmount || req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
-      });
-    }
-
     let consignmentNo: number;
 
     try {
@@ -230,12 +213,13 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    const isOwner = String(bilty.createdBy) === String(req.user._id);
     const nextFormData: Record<string, unknown> = {
       ...(formData && typeof formData === "object" ? formData : {}),
       consignmentNo: String(bilty.consignmentNo ?? ""),
     };
 
-    if (typeof req.user.biltyAccessFreightAmount === "number") {
+    if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
       nextFormData.freight = String(req.user.biltyAccessFreightAmount);
     }
 
@@ -278,6 +262,40 @@ export const getMyBilty = async (req: AuthRequest, res: Response) => {
     );
   } catch {
     res.status(500).json({ error: "Failed to fetch bilty records" });
+  }
+};
+
+export const getBiltyById = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  try {
+    const bilty = await Bilty.findById(req.params.id).populate(
+      "createdBy",
+      "name phone role"
+    );
+
+    if (!bilty) {
+      return res.status(404).json({ error: "Bilty not found" });
+    }
+
+    if (
+      String(bilty.createdBy?._id || bilty.createdBy) !== String(req.user._id) &&
+      !canManageAllBilties(req.user.role)
+    ) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    return res.json({
+      ...bilty.toObject(),
+      status:
+        bilty.expiresAt && isPastDeadline(bilty.expiresAt)
+          ? "expired"
+          : bilty.status || "draft",
+    });
+  } catch {
+    return res.status(500).json({ error: "Failed to fetch bilty" });
   }
 };
 

@@ -5,6 +5,7 @@ export type StoredBiltyDraft = {
   formData: BiltyFormState;
   hasSavedBilty: boolean;
   updatedAt: string;
+  expiresAt?: string;
 };
 
 export const getBiltyDraftStorageKey = (userId?: string) =>

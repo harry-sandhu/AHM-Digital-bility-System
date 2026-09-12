@@ -7,7 +7,7 @@ import {
   initialBiltyFormData,
   type BiltyFormState,
 } from "../types/biltyForm";
-import { readBiltyDraft, writeBiltyDraft } from "../utils/biltyDraft";
+import { clearBiltyDraft, readBiltyDraft, writeBiltyDraft } from "../utils/biltyDraft";
 
 const formatDeadlineTime = (deadline?: string | null) => {
   if (!deadline) {
@@ -66,8 +66,17 @@ const BiltyForm: React.FC = () => {
       setStatusMessage("");
 
       const storedDraft = readBiltyDraft(user.id);
+      const storedDraftExpired = storedDraft
+        ? storedDraft.expiresAt
+          ? new Date(storedDraft.expiresAt).getTime() < Date.now()
+          : new Date(storedDraft.updatedAt).toDateString() !== new Date().toDateString()
+        : false;
 
-      if (storedDraft?.biltyId && storedDraft.formData?.biltyNumber) {
+      if (storedDraftExpired) {
+        clearBiltyDraft(user.id);
+      }
+
+      if (!storedDraftExpired && storedDraft?.biltyId && storedDraft.formData?.biltyNumber) {
         if (!isMounted) {
           return;
         }
@@ -151,8 +160,9 @@ const BiltyForm: React.FC = () => {
       formData,
       hasSavedBilty,
       updatedAt: new Date().toISOString(),
+      expiresAt: deadlineAt || undefined,
     });
-  }, [user?.id, biltyId, formData, hasSavedBilty]);
+  }, [user?.id, biltyId, formData, hasSavedBilty, deadlineAt]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getAllBilties, getMyBilties } from "../api/biltyApi";
 import { useAuth } from "../context/AuthContext";
 import type { BiltyRecord } from "../types/bilty";
@@ -14,6 +15,7 @@ type BiltyCardProps = {
 };
 
 const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
+  const navigate = useNavigate();
   const normalizedFormData: BiltyFormState = normalizeBiltyFormData(bilty.formData);
   const hasDocumentData = Object.values(normalizedFormData).some((value) =>
     String(value || "").trim().length > 0
@@ -51,6 +53,15 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
             disabled={!hasDocumentData}
             size="sm"
           />
+          {role === "superadmin" && status !== "expired" ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+            >
+              Edit Bilty
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -106,7 +117,7 @@ const BiltyList: React.FC = () => {
 
       try {
         const response =
-          role === "admin" || role === "superadmin"
+          role === "superadmin"
             ? await getAllBilties()
             : await getMyBilties();
 
@@ -129,7 +140,7 @@ const BiltyList: React.FC = () => {
             Bilty Records
           </p>
           <h2 className="mt-2 text-2xl font-bold text-slate-900">
-            {role === "admin" || role === "superadmin" ? "All Bilties" : "My Bilties"}
+            {role === "superadmin" ? "All Bilties" : "My Bilties"}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             Each saved bilty can be downloaded as a 2-page PDF or 2 PNG images.
