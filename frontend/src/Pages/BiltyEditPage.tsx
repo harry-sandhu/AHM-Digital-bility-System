@@ -6,6 +6,7 @@ import { createBilty, getBilty } from "../api/biltyApi";
 import { useAuth } from "../context/AuthContext";
 import { getApiErrorMessage } from "../utils/apiError";
 import {
+  calculateBiltyTotals,
   normalizeBiltyFormData,
   type BiltyFormState,
 } from "../types/biltyForm";
@@ -46,7 +47,12 @@ const BiltyEditPage: React.FC = () => {
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setFormData((current) =>
+      calculateBiltyTotals({
+        ...current,
+        [event.target.name]: event.target.value,
+      })
+    );
     setMessage("");
     setError("");
   };

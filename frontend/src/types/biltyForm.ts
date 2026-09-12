@@ -31,6 +31,7 @@ export type BiltyFormState = {
   labour: string;
   gstCharges: string;
   biltyCharges: string;
+  kanta: string;
   grandTotal: string;
   advance: string;
   balanceAmt: string;
@@ -53,7 +54,7 @@ export const initialBiltyFormData: BiltyFormState = {
   insuranceAmount: "",
   biltyNumber: "",
   gstPaidBy: "",
-  basisOfBooking: "",
+  basisOfBooking: "To Pay",
   consignorAddress: "",
   consignorGstin: "",
   consigneeAddress: "",
@@ -73,18 +74,44 @@ export const initialBiltyFormData: BiltyFormState = {
   labour: "",
   gstCharges: "",
   biltyCharges: "",
-  grandTotal: "",
+  kanta: "",
+  grandTotal: "0",
   advance: "",
-  balanceAmt: "",
+  balanceAmt: "0",
   declaredValue: "",
   driver: "",
   remarks: "",
   bookingClerk: "",
 };
 
+const parseAmount = (value: string) => {
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatAmount = (value: number) =>
+  Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+
+export const calculateBiltyTotals = (formData: BiltyFormState): BiltyFormState => {
+  const grandTotal =
+    parseAmount(formData.freight) +
+    parseAmount(formData.labour) +
+    parseAmount(formData.gstCharges) +
+    parseAmount(formData.biltyCharges) +
+    parseAmount(formData.kanta);
+
+  return {
+    ...formData,
+    grandTotal: formatAmount(grandTotal),
+    balanceAmt: formatAmount(grandTotal - parseAmount(formData.advance)),
+  };
+};
+
 export const normalizeBiltyFormData = (
   formData?: Record<string, string>
-): BiltyFormState => ({
-  ...initialBiltyFormData,
-  ...(formData || {}),
-});
+): BiltyFormState =>
+  calculateBiltyTotals({
+    ...initialBiltyFormData,
+    ...(formData || {}),
+    basisOfBooking: formData?.basisOfBooking || "To Pay",
+  });

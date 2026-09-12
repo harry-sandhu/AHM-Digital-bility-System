@@ -22,6 +22,10 @@ body {
     display: block;
 }
 
+.print-only-copy {
+    display: none;
+}
+
 @media print {
     @page {
         size: A4 portrait;
@@ -32,41 +36,41 @@ body {
     body,
     #root {
         width: 210mm !important;
-        height: 297mm !important;
+        height: auto !important;
         min-width: 0 !important;
         min-height: 0 !important;
         max-width: 210mm !important;
-        max-height: 297mm !important;
+        max-height: none !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         background: white !important;
     }
 
     form {
         position: relative !important;
         width: 210mm !important;
-        height: 297mm !important;
+        height: auto !important;
         min-width: 0 !important;
         min-height: 0 !important;
         max-width: 210mm !important;
-        max-height: 297mm !important;
+        max-height: none !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     form > div {
         position: relative !important;
         width: 210mm !important;
-        height: 297mm !important;
+        height: auto !important;
         min-width: 0 !important;
         min-height: 0 !important;
         max-width: 210mm !important;
-        max-height: 297mm !important;
+        max-height: none !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     .no-print {
@@ -74,28 +78,28 @@ body {
     }
 
     .print-pages {
-        position: absolute !important;
+        position: relative !important;
         top: 0 !important;
         left: 0 !important;
 
         display: block !important;
 
         width: 210mm !important;
-        height: 297mm !important;
+        height: auto !important;
 
         min-width: 0 !important;
         min-height: 0 !important;
         max-width: 210mm !important;
-        max-height: 297mm !important;
+        max-height: none !important;
 
         margin: 0 !important;
         padding: 0 !important;
 
-        overflow: hidden !important;
+        overflow: visible !important;
     }
 
     .print-page {
-        position: absolute !important;
+        position: relative !important;
         top: 0 !important;
         left: 0 !important;
 
@@ -116,11 +120,11 @@ body {
         box-sizing: border-box !important;
 
         break-before: auto !important;
-        break-after: auto !important;
+        break-after: page !important;
         break-inside: auto !important;
 
         page-break-before: auto !important;
-        page-break-after: auto !important;
+        page-break-after: always !important;
         page-break-inside: auto !important;
     }
 
@@ -149,6 +153,15 @@ body {
         page-break-before: auto !important;
         page-break-after: auto !important;
         page-break-inside: auto !important;
+    }
+
+    .print-only-copy {
+        display: block !important;
+    }
+
+    .print-page:last-child {
+        break-after: auto !important;
+        page-break-after: auto !important;
     }
 
     .print-bilty-page * {

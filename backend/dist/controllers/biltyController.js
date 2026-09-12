@@ -20,6 +20,11 @@ const numberRange_1 = require("../utils/numberRange");
 const biltyPricing_1 = require("../utils/biltyPricing");
 const canManageAllBilties = (role) => role === "superadmin" || role === "admin";
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
+const parseAmount = (value) => {
+    const parsed = Number(String(value !== null && value !== void 0 ? value : "").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+const formatAmount = (value) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 const getLocalMidnightDeadline = (fromDate = new Date()) => {
     const deadline = new Date(fromDate);
     deadline.setHours(23, 59, 59, 999);
@@ -171,6 +176,13 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
             nextFormData.freight = String(req.user.biltyAccessFreightAmount);
         }
+        const grandTotal = parseAmount(nextFormData.freight) +
+            parseAmount(nextFormData.labour) +
+            parseAmount(nextFormData.gstCharges) +
+            parseAmount(nextFormData.biltyCharges) +
+            parseAmount(nextFormData.kanta);
+        nextFormData.grandTotal = formatAmount(grandTotal);
+        nextFormData.balanceAmt = formatAmount(grandTotal - parseAmount(nextFormData.advance));
         bilty.formData = nextFormData;
         bilty.status = "draft";
         yield bilty.save();

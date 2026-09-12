@@ -56,7 +56,7 @@ const PositionedBox: React.FC<PositionedBoxProps> = ({
         style={{ padding: "0.35%", gap: "0.2em", ...style }}
     >
         {label ? (
-            <label className={`block shrink-0 text-[0.88em] leading-tight ${labelClassName}`}>{label}</label>
+            <label className={`block shrink-0 text-[1.05em] leading-tight ${labelClassName}`}>{label}</label>
         ) : null}
         {children}
     </div>
@@ -109,6 +109,30 @@ const TextInput: React.FC<TextInputProps> = ({
         </div>
     );
 };
+
+const DateInput: React.FC<InputHTMLAttributes<HTMLInputElement> & { bordered?: boolean }> = ({
+    className = "",
+    bordered = false,
+    ...props
+}) => (
+    <div className="relative w-full min-w-0">
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="pointer-events-none absolute left-[0.25em] top-1/2 h-[1.1em] w-[1.1em] -translate-y-1/2 text-black"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+        >
+            <rect x="3" y="4.5" width="18" height="16" rx="2" />
+            <path d="M16 2.5v4M8 2.5v4M3 9h18" />
+        </svg>
+        <input
+            {...props}
+            className={`w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[1.55em] pr-[0.2em] text-[1.3em] leading-tight outline-none ${className}`}
+        />
+    </div>
+);
 
 type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
     bordered?: boolean;
@@ -164,6 +188,7 @@ type BiltyDocumentProps = {
   formData: BiltyFormState;
   onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   freightReadOnly?: boolean;
+  basisCopy?: boolean;
   className?: string;
     documentRef?: React.Ref<HTMLDivElement>;
     fontSize?: CSSProperties["fontSize"];
@@ -173,6 +198,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     formData,
     onChange,
     freightReadOnly = false,
+    basisCopy = false,
     className = "",
     documentRef,
     fontSize = "clamp(7px, 0.8vw, 12px)",
@@ -205,7 +231,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 className="absolute w-full px-[5%] text-center text-black"
                 style={{ top: pct(0.081), fontSize: "clamp(7px, 0.92vw, 13px)" }}
             >
-                GSTIN: 09CPGPS1323P1ZD | PAN No: CPGPS1323P | Email: ahmtptservice@gmail.com | A/c No: 971000294002004 | Branch: Axis Bank,
+                GSTIN: 09CPGPS1323P1ZD | PAN No: CPGPS1323P | Email: ahmtptservice@gmail.com | A/c No: 971000294002004 | I.F.S. Code: UTIB0000795 | Branch: Axis Bank,
                 Rampur
             </div>
             <div className="absolute left-[5%] w-[90%] border-b border-black" style={{ top: pct(0.103) }} />
@@ -277,13 +303,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         placeholder="Policy No."
                         maxLength={25}
                     />
-                    <input
+                    <DateInput
                         name="insuranceDate"
                         type="date"
                         value={formData.insuranceDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
                     />
                     <TextInput
                         name="insuranceCertNo"
@@ -320,13 +345,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         placeholder="Consignment Note Number"
                         maxLength={25}
                     />
-                    <input
+                    <DateInput
                         name="biltyDate"
                         type="date"
                         value={formData.biltyDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
                     />
                 </div>
             </PositionedBox>
@@ -343,19 +367,19 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         placeholder="Invoice Number"
                         maxLength={40}
                     />
-                    <input
+                    <DateInput
                         name="invoiceDate"
                         type="date"
                         value={formData.invoiceDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
+                        bordered
                     />
                 </div>
             </PositionedBox>
 
             <PositionedBox style={boxStyle(0.289, 0.74, 0.21, 0.055)} label="GST Paid By" className="justify-start">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.82em] leading-tight">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.98em] leading-tight">
                     {gstPaidByOptions.map(option =>
                         editable ? (
                             <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -384,7 +408,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 style={{ ...boxStyle(0.354, 0.05, 0.9, 0.125), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr" }}
             >
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className="block shrink-0 text-[0.88em] leading-tight">
+                    <label className="block shrink-0 text-[1.05em] leading-tight">
                         Consignor&apos;s Name &amp; Address
                     </label>
                     <TextAreaField
@@ -409,7 +433,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className="block shrink-0 text-[0.88em] leading-tight">
+                    <label className="block shrink-0 text-[1.05em] leading-tight">
                         Consignee&apos;s Name &amp; Address
                     </label>
                     <TextAreaField
@@ -434,7 +458,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className="text-center text-[0.88em] leading-tight">From</label>
+                    <label className="text-center text-[1.05em] leading-tight">From</label>
                     <TextAreaField
                         name="from"
                         value={formData.from}
@@ -447,7 +471,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 <div className="flex min-w-0 flex-col p-[0.35%]">
-                    <label className="text-center text-[0.88em] leading-tight">To</label>
+                    <label className="text-center text-[1.05em] leading-tight">To</label>
                     <TextAreaField
                         name="to"
                         value={formData.to}
@@ -471,7 +495,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 {/* Method of packing + number of packages */}
                 <div className="grid min-w-0 grid-rows-2 border-r border-black">
                     <div className="flex min-w-0 flex-col border-b border-black p-[0.45%]">
-                        <label className="text-center text-[0.88em] font-semibold">Method Of Packing</label>
+                        <label className="text-center text-[1.05em] font-semibold">Method Of Packing</label>
                         <TextAreaField
                             name="methodOfPacking"
                             value={formData.methodOfPacking}
@@ -484,7 +508,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         />
                     </div>
                     <div className="flex min-w-0 flex-col p-[0.45%]">
-                        <label className="text-center text-[0.88em] font-semibold">No. of Packages</label>
+                        <label className="text-center text-[1.05em] font-semibold">No. of Packages</label>
                         <TextAreaField
                             name="packages"
                             value={formData.packages}
@@ -500,7 +524,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
                 {/* Description */}
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.45%]">
-                    <label className="text-center text-[0.88em] font-semibold">Description</label>
+                    <label className="text-center text-[1.05em] font-semibold">Description</label>
                     <TextAreaField
                         name="description"
                         value={formData.description}
@@ -517,7 +541,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 <div className="grid min-w-0 grid-rows-[1fr_1fr] border-r border-black">
                     <div className="grid min-w-0 grid-cols-3 border-b border-black">
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className="whitespace-nowrap text-center text-[0.8em] font-semibold">Actual Wt.</label>
+                            <label className="whitespace-nowrap text-center text-[0.96em] font-semibold">Actual Wt.</label>
                             <TextAreaField
                                 name="actualWt"
                                 value={formData.actualWt}
@@ -530,7 +554,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             />
                         </div>
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className="whitespace-nowrap text-center text-[0.8em] font-semibold">Charged Wt.</label>
+                            <label className="whitespace-nowrap text-center text-[0.96em] font-semibold">Charged Wt.</label>
                             <TextAreaField
                                 name="chargedWt"
                                 value={formData.chargedWt}
@@ -543,7 +567,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             />
                         </div>
                         <div className="flex min-w-0 flex-col p-[0.35%]">
-                            <label className="whitespace-nowrap text-center text-[0.8em] font-semibold">Rate</label>
+                            <label className="whitespace-nowrap text-center text-[0.96em] font-semibold">Rate</label>
                             <TextAreaField
                                 name="rate"
                                 value={formData.rate}
@@ -558,8 +582,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     </div>
 
                     <div className="flex min-w-0 flex-col p-[0.45%]">
-                        <label className="text-center text-[0.88em] font-semibold">Basis of Booking</label>
-                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1 text-[0.88em]">
+                        <label className="text-center text-[1.05em] font-semibold">Basis of Booking</label>
+                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1 text-[1.05em]">
                             {basisOfBookingOptions.map(option =>
                                 editable ? (
                                     <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -584,8 +608,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 {/* Amount column */}
-                <div className="grid min-w-0 grid-rows-[auto_repeat(7,minmax(0,1fr))]">
-                    <div className="flex items-center justify-center border-b border-black text-[0.88em] font-semibold">
+                <div className="grid min-w-0 grid-rows-[auto_repeat(8,minmax(0,1fr))]">
+                    <div className="flex items-center justify-center border-b border-black text-[1.05em] font-semibold">
                         Amount
                     </div>
                     {[
@@ -593,6 +617,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         ["Labour", "labour"],
                         ["GST Charges", "gstCharges"],
                         ["Bilty Charges", "biltyCharges"],
+                        ["Kanta", "kanta"],
                         ["Grand Total", "grandTotal"],
                         ["Advance", "advance"],
                         ["Balance Amount", "balanceAmt"],
@@ -600,17 +625,28 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         <div
                             key={name}
                             className={`grid min-w-0 grid-cols-[0.9fr_1.1fr] ${
-                                index < 6 ? "border-b border-black" : ""
+                                index < 7 ? "border-b border-black" : ""
                             }`}
                         >
-                            <div className="flex items-center border-r border-black px-[0.35em] text-[0.78em] font-semibold leading-tight">
+                            <div className="flex items-center border-r border-black px-[0.35em] text-[0.94em] font-semibold leading-tight">
                                 {label}
                             </div>
                             <TextInput
                                 name={name}
-                                value={formData[name as keyof BiltyFormState] as string}
+                                value={
+                                    basisCopy
+                                        ? name === "freight"
+                                            ? formData.basisOfBooking
+                                            : ""
+                                        : (formData[name as keyof BiltyFormState] as string)
+                                }
                                 onChange={onChange}
-                                readOnly={!editable || (name === "freight" && freightReadOnly)}
+                                readOnly={
+                                    !editable ||
+                                    (name === "freight" && freightReadOnly) ||
+                                    name === "grandTotal" ||
+                                    name === "balanceAmt"
+                                }
                                 staticRender={staticRender}
                                 align="right"
                                 inputMode="decimal"
@@ -660,7 +696,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         rows={3}
                     />
                     <div className="absolute inset-y-0 right-0 w-[25%] border-l border-black bg-white pl-[0.35em]">
-                        <label className="mb-[0.2em] block text-[0.88em] leading-tight">Booking Clerk</label>
+                        <label className="mb-[0.2em] block text-[1.05em] leading-tight">Booking Clerk</label>
                         <TextInput
                             className="h-[1.8em]"
                             name="bookingClerk"

@@ -14,6 +14,14 @@ const canManageAllBilties = (role?: string) =>
 
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 
+const parseAmount = (value: unknown) => {
+  const parsed = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const formatAmount = (value: number) =>
+  Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+
 const getLocalMidnightDeadline = (fromDate = new Date()) => {
   const deadline = new Date(fromDate);
   deadline.setHours(23, 59, 59, 999);
@@ -222,6 +230,17 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
     if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
       nextFormData.freight = String(req.user.biltyAccessFreightAmount);
     }
+
+    const grandTotal =
+      parseAmount(nextFormData.freight) +
+      parseAmount(nextFormData.labour) +
+      parseAmount(nextFormData.gstCharges) +
+      parseAmount(nextFormData.biltyCharges) +
+      parseAmount(nextFormData.kanta);
+    nextFormData.grandTotal = formatAmount(grandTotal);
+    nextFormData.balanceAmt = formatAmount(
+      grandTotal - parseAmount(nextFormData.advance)
+    );
 
     bilty.formData = nextFormData;
     bilty.status = "draft";

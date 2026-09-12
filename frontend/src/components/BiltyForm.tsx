@@ -4,6 +4,7 @@ import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons from "./BiltyDownloadButtons";
 import { useAuth } from "../context/AuthContext";
 import {
+  calculateBiltyTotals,
   initialBiltyFormData,
   type BiltyFormState,
 } from "../types/biltyForm";
@@ -174,7 +175,9 @@ const BiltyForm: React.FC = () => {
     }
 
     setErrorMessage("");
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) =>
+      calculateBiltyTotals({ ...prev, [name]: value })
+    );
 
     if (hasSavedBilty) {
       setHasSavedBilty(false);
@@ -265,6 +268,16 @@ const BiltyForm: React.FC = () => {
               freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
             />
           </div>
+          {formData.basisOfBooking !== "To Pay" ? (
+            <div className="print-page print-bilty-page print-only-copy">
+              <BiltyDocument
+                formData={formData}
+                onChange={handleChange}
+                freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
+                basisCopy
+              />
+            </div>
+          ) : null}
         </div>
       </div>
     </form>
