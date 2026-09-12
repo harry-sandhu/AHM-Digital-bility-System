@@ -16,21 +16,24 @@ const normalizeDisplayValue = (value: unknown) => {
     return String(value);
 };
 
-const getFittedTextStyle = (value: unknown, multiline = false): CSSProperties => {
+const getFittedTextStyle = (
+    value: unknown,
+    multiline = false,
+): CSSProperties => {
     const text = normalizeDisplayValue(value).replace(/\s+/g, " ").trim();
     const length = text.length;
 
     if (!length) return {};
 
     if (multiline) {
-        if (length > 120) return { fontSize: "0.72em", lineHeight: 1.05 };
-        if (length > 70) return { fontSize: "0.8em", lineHeight: 1.08 };
-        return { fontSize: "0.88em", lineHeight: 1.12 };
+        if (length > 120) return { fontSize: "0.85em", lineHeight: 1.05 };
+        if (length > 70) return { fontSize: "1em", lineHeight: 1.08 };
+        return { fontSize: "1.2em", lineHeight: 1.12 };
     }
 
-    if (length > 40) return { fontSize: "0.74em", lineHeight: 1.05 };
-    if (length > 24) return { fontSize: "0.82em", lineHeight: 1.05 };
-    return { fontSize: "0.9em", lineHeight: 1.05 };
+    if (length > 40) return { fontSize: "0.9em", lineHeight: 1.05 };
+    if (length > 24) return { fontSize: "1.05em", lineHeight: 1.05 };
+    return { fontSize: "1.2em", lineHeight: 1.05 };
 };
 
 type PositionedBoxProps = {
@@ -61,12 +64,14 @@ const PositionedBox: React.FC<PositionedBoxProps> = ({
 
 type TextInputProps = InputHTMLAttributes<HTMLInputElement> & {
     align?: "left" | "right";
+    bordered?: boolean;
     staticRender?: boolean;
 };
 
 const TextInput: React.FC<TextInputProps> = ({
     className = "",
     align = "left",
+    bordered = false,
     staticRender = false,
     value,
     style,
@@ -74,13 +79,13 @@ const TextInput: React.FC<TextInputProps> = ({
 }) => {
     const alignmentClass = align === "right" ? "text-right" : "text-left";
     const baseClassName =
-        `w-full min-w-0 border border-black bg-transparent px-[0.35em] ` +
-        `text-[0.9em] leading-tight text-black ${alignmentClass}`;
+        `w-full min-w-0 ${bordered ? "border border-black" : "border-0"} bg-transparent px-[0.2em] ` +
+        `text-[1.3em] leading-tight text-black ${alignmentClass}`;
 
     if (staticRender) {
         return (
             <div
-                className={`${baseClassName} flex min-h-[1.7em] items-center overflow-hidden py-[0.18em] text-[0.9em] ${className}`}
+                className={`${baseClassName} flex min-h-[1.7em] items-center overflow-hidden py-[0.08em] ${className}`}
                 style={style}
                 title={normalizeDisplayValue(value)}
             >
@@ -106,11 +111,13 @@ const TextInput: React.FC<TextInputProps> = ({
 };
 
 type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
+    bordered?: boolean;
     staticRender?: boolean;
 };
 
 const TextAreaField: React.FC<TextAreaFieldProps> = ({
     className = "",
+    bordered = false,
     style,
     staticRender = false,
     value,
@@ -125,7 +132,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
     if (staticRender) {
         return (
             <div
-                className={`w-full min-w-0 flex-1 overflow-hidden border border-black bg-transparent px-[0.35em] py-[0.2em] text-[0.9em] leading-tight text-black ${className}`}
+                className={`w-full min-w-0 flex-1 overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent px-[0.2em] py-[0.1em] text-[1.2em] leading-tight text-black ${className}`}
                 style={sharedStyle}
                 title={normalizeDisplayValue(value)}
             >
@@ -141,13 +148,13 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
 
     return (
         <div
-            className={`flex w-full min-w-0 flex-1 overflow-hidden border border-black bg-transparent ${className}`}
+            className={`flex w-full min-w-0 flex-1 overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent ${className}`}
             style={sharedStyle}
         >
             <textarea
                 {...props}
                 value={value}
-                className="h-full min-h-0 w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent px-[0.35em] py-[0.2em] text-[0.9em] leading-tight outline-none"
+                className="h-full min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-[1.3em] leading-tight outline-none"
             />
         </div>
     );
@@ -218,8 +225,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             </PositionedBox>
 
             <PositionedBox style={boxStyle(0.112, 0.26, 0.54, 0.052)}>
-                <div className="flex h-full items-center justify-center text-center text-[0.95em] font-semibold leading-tight">
-                    AT OWNER&apos;S RISK FREIGHT BROKER
+                <div className="flex h-full items-center justify-center text-center text-[1.9em] font-semibold leading-tight">
+                    AT OWNER&apos;S RISK / FREIGHT BROKER
                 </div>
             </PositionedBox>
 
@@ -276,7 +283,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         value={formData.insuranceDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight outline-none"
+                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
                     />
                     <TextInput
                         name="insuranceCertNo"
@@ -319,7 +326,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         value={formData.biltyDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight outline-none"
+                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border-0 bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
                     />
                 </div>
             </PositionedBox>
@@ -331,6 +338,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         value={formData.invoiceNoDate}
                         onChange={onChange}
                         readOnly={!editable}
+                        bordered
                         staticRender={staticRender}
                         placeholder="Invoice Number"
                         maxLength={40}
@@ -341,7 +349,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         value={formData.invoiceDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
-                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight outline-none"
+                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.2em] text-[1.3em] leading-tight outline-none"
                     />
                 </div>
             </PositionedBox>
