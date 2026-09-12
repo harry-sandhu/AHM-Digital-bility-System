@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { purchaseBiltyAccess } from "../api/biltyApi";
 import { getApiErrorMessage } from "../utils/apiError";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
+import { getBiltyAccessAmount } from "../utils/biltyPricing";
 
 const formatDeadline = (deadline?: string | null) => {
   if (!deadline) {
@@ -22,13 +23,18 @@ const BiltyPaymentPage: React.FC = () => {
   const { user, updateUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [freightAmount, setFreightAmount] = useState("");
   const paymentDeadline = user?.biltyAccessExpiresAt
     ? new Date(user.biltyAccessExpiresAt)
     : null;
   const hasActivePayment = Boolean(
     paymentDeadline && paymentDeadline.getTime() >= Date.now()
   );
-  const amount = user?.biltyAccessAmount || 300;
+  const parsedFreightAmount = Number(freightAmount);
+  const hasValidFreightAmount = Number.isFinite(parsedFreightAmount) && parsedFreightAmount > 0;
+  const amount = hasValidFreightAmount
+    ? getBiltyAccessAmount(parsedFreightAmount)
+    : 200;
 
   if (sessionStorage.getItem(BILTY_TERMS_ACCEPTED_KEY) !== "true") {
     return <Navigate to="/bilty/terms" replace />;
@@ -42,10 +48,15 @@ const BiltyPaymentPage: React.FC = () => {
       return;
     }
 
+    if (!hasValidFreightAmount) {
+      setError("Enter a valid freight amount greater than zero.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const response = await purchaseBiltyAccess();
+      const response = await purchaseBiltyAccess(parsedFreightAmount);
       updateUser(response.data.user);
       navigate("/bilty");
     } catch (err) {
@@ -75,8 +86,21 @@ const BiltyPaymentPage: React.FC = () => {
           <div className="card p-6">
             <h2 className="text-xl font-semibold text-slate-900">Payment summary</h2>
             <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <label className="text-sm font-semibold text-slate-700" htmlFor="freight-amount">
+                Freight amount
+              </label>
+              <input
+                id="freight-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={freightAmount}
+                onChange={(event) => setFreightAmount(event.target.value)}
+                placeholder="Enter freight amount"
+                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                Amount
+                Bilty charge
               </p>
               <p className="mt-2 text-3xl font-bold text-slate-900">₹{amount}</p>
               <p className="mt-3 text-sm leading-6 text-slate-600">

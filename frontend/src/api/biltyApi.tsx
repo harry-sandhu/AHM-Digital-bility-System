@@ -12,8 +12,10 @@ export const requestBiltyNumber = () =>
     paymentAmount: number;
   }>("/bilty/generate");
 
-export const purchaseBiltyAccess = () =>
-  axiosInstance.post<{ message: string; user: AuthUser }>("/bilty/pay");
+export const purchaseBiltyAccess = (freightAmount: number) =>
+  axiosInstance.post<{ message: string; user: AuthUser }>("/bilty/pay", {
+    freightAmount,
+  });
 
 export const createBilty = (data: {
   biltyId: string;

@@ -30,6 +30,9 @@ const sanitizeUser = (user) => ({
         ? new Date(user.biltyAccessExpiresAt).toISOString()
         : null,
     biltyAccessAmount: typeof user.biltyAccessAmount === "number" ? user.biltyAccessAmount : 0,
+    biltyAccessFreightAmount: typeof user.biltyAccessFreightAmount === "number"
+        ? user.biltyAccessFreightAmount
+        : null,
 });
 const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, phone, password } = req.body;

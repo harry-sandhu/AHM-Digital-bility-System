@@ -154,9 +154,10 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
 };
 
 type BiltyDocumentProps = {
-    formData: BiltyFormState;
-    onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-    className?: string;
+  formData: BiltyFormState;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  freightReadOnly?: boolean;
+  className?: string;
     documentRef?: React.Ref<HTMLDivElement>;
     fontSize?: CSSProperties["fontSize"];
 };
@@ -164,6 +165,7 @@ type BiltyDocumentProps = {
 const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     formData,
     onChange,
+    freightReadOnly = false,
     className = "",
     documentRef,
     fontSize = "clamp(7px, 0.8vw, 12px)",
@@ -215,16 +217,10 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 />
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.112, 0.26, 0.54, 0.052)} label="Invoice No. & Date">
-                <TextInput
-                    name="invoiceNoDate"
-                    value={formData.invoiceNoDate}
-                    onChange={onChange}
-                    readOnly={!editable}
-                    staticRender={staticRender}
-                    placeholder="Invoice No. & Date"
-                    maxLength={60}
-                />
+            <PositionedBox style={boxStyle(0.112, 0.26, 0.54, 0.052)}>
+                <div className="flex h-full items-center justify-center text-center text-[0.95em] font-semibold leading-tight">
+                    AT OWNER&apos;S RISK FREIGHT BROKER
+                </div>
             </PositionedBox>
 
             <PositionedBox style={boxStyle(0.112, 0.81, 0.14, 0.052)} label="Phone No.">
@@ -306,7 +302,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             </PositionedBox>
 
             {/* Consignment Note */}
-            <PositionedBox style={boxStyle(0.289, 0.05, 0.68, 0.055)} label="Consignment Note No.">
+            <PositionedBox style={boxStyle(0.289, 0.05, 0.25, 0.055)} label="Consignment Note No.">
                 <div className="grid min-h-0 flex-1 grid-cols-[1fr_0.42fr] gap-1">
                     <TextInput
                         name="consignmentNo"
@@ -321,6 +317,28 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         name="biltyDate"
                         type="date"
                         value={formData.biltyDate ?? ""}
+                        onChange={onChange}
+                        disabled={!editable}
+                        className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight outline-none"
+                    />
+                </div>
+            </PositionedBox>
+
+            <PositionedBox style={boxStyle(0.289, 0.30, 0.44, 0.055)} label="Invoice No. & Date">
+                <div className="grid min-h-0 flex-1 grid-cols-[1fr_0.42fr] gap-1">
+                    <TextInput
+                        name="invoiceNoDate"
+                        value={formData.invoiceNoDate}
+                        onChange={onChange}
+                        readOnly={!editable}
+                        staticRender={staticRender}
+                        placeholder="Invoice Number"
+                        maxLength={40}
+                    />
+                    <input
+                        name="invoiceDate"
+                        type="date"
+                        value={formData.invoiceDate ?? ""}
                         onChange={onChange}
                         disabled={!editable}
                         className="w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap border border-black bg-transparent px-[0.35em] text-[0.9em] leading-tight outline-none"
@@ -584,7 +602,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 name={name}
                                 value={formData[name as keyof BiltyFormState] as string}
                                 onChange={onChange}
-                                readOnly={!editable}
+                                readOnly={!editable || (name === "freight" && freightReadOnly)}
                                 staticRender={staticRender}
                                 align="right"
                                 inputMode="decimal"

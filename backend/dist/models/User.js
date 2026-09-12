@@ -14,6 +14,7 @@ const userSchema = new mongoose_1.Schema({
     biltyAccessPaidAt: { type: Date },
     biltyAccessExpiresAt: { type: Date },
     biltyAccessAmount: { type: Number, default: 0 },
+    biltyAccessFreightAmount: { type: Number },
 }, {
     timestamps: true,
 });

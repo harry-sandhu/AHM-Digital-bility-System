@@ -8,4 +8,5 @@ export interface UserType {
   biltyAccessPaidAt?: string;
   biltyAccessExpiresAt?: string;
   biltyAccessAmount?: number;
+  biltyAccessFreightAmount?: number;
 }

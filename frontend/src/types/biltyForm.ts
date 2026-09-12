@@ -1,6 +1,7 @@
 export type BiltyFormState = {
   lorryNo: string;
   invoiceNoDate: string;
+  invoiceDate: string;
   deliveryAddress: string;
   phoneNo: string;
   insuranceCompany: string;
@@ -42,6 +43,7 @@ export type BiltyFormState = {
 export const initialBiltyFormData: BiltyFormState = {
   lorryNo: "",
   invoiceNoDate: "",
+  invoiceDate: "",
   deliveryAddress: "",
   phoneNo: "",
   insuranceCompany: "",

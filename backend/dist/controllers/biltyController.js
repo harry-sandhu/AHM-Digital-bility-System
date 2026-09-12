@@ -17,8 +17,9 @@ const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const User_1 = __importDefault(require("../models/User"));
 const numberRange_1 = require("../utils/numberRange");
+const biltyPricing_1 = require("../utils/biltyPricing");
 const canManageAllBilties = (role) => role === "superadmin" || role === "admin";
-const BILTY_ACCESS_AMOUNT = 300;
+const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 const getLocalMidnightDeadline = (fromDate = new Date()) => {
     const deadline = new Date(fromDate);
     deadline.setHours(23, 59, 59, 999);
@@ -38,6 +39,9 @@ const serializeBiltyAccess = (user) => ({
         ? new Date(user.biltyAccessExpiresAt).toISOString()
         : null,
     biltyAccessAmount: typeof user.biltyAccessAmount === "number" ? user.biltyAccessAmount : 0,
+    biltyAccessFreightAmount: typeof user.biltyAccessFreightAmount === "number"
+        ? user.biltyAccessFreightAmount
+        : null,
 });
 const getBiltyStatus = (expiresAt) => expiresAt && !isPastDeadline(expiresAt) ? "draft" : "expired";
 const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -61,7 +65,7 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
                 biltyNumber: activeBilty.biltyNumber,
                 consignmentNo: activeBilty.consignmentNo,
                 expiresAt: activeBilty.expiresAt,
-                paymentAmount: activeBilty.paymentAmount || req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
+                paymentAmount: activeBilty.paymentAmount || req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
             });
         }
         let consignmentNo;
@@ -86,7 +90,7 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
             createdBy: req.user._id,
             formData: {},
             status: getBiltyStatus(expiresAt),
-            paymentAmount: req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
+            paymentAmount: req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
             paymentPaidAt: req.user.biltyAccessPaidAt || new Date(),
             paymentExpiresAt: expiresAt,
             expiresAt,
@@ -106,10 +110,17 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
 });
 exports.generateBilty = generateBilty;
 const purchaseBiltyAccess = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!req.user) {
         return res.status(401).json({ error: "Authentication required" });
     }
     try {
+        const freightAmount = Number((_a = req.body) === null || _a === void 0 ? void 0 : _a.freightAmount);
+        if (!Number.isFinite(freightAmount) || freightAmount <= 0) {
+            return res.status(400).json({
+                error: "A valid freight amount greater than zero is required",
+            });
+        }
         const user = yield User_1.default.findById(req.user._id);
         if (!user) {
             return res.status(404).json({ error: "User not found" });
@@ -128,16 +139,18 @@ const purchaseBiltyAccess = (req, res) => __awaiter(void 0, void 0, void 0, func
             });
         }
         const expiresAt = getLocalMidnightDeadline(now);
+        const biltyAccessAmount = (0, biltyPricing_1.getBiltyAccessAmount)(freightAmount);
         user.biltyAccessPaidAt = now;
         user.biltyAccessExpiresAt = expiresAt;
-        user.biltyAccessAmount = BILTY_ACCESS_AMOUNT;
+        user.biltyAccessAmount = biltyAccessAmount;
+        user.biltyAccessFreightAmount = freightAmount;
         yield user.save();
         res.status(200).json({
             message: "Bilty access activated",
             user: Object.assign({ id: String(user._id), name: user.name, phone: user.phone, role: user.role, isActive: user.isActive }, serializeBiltyAccess(user)),
         });
     }
-    catch (_a) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to activate bilty access" });
     }
 });
@@ -167,7 +180,11 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
                 error: "Bilty expired. Please create a new bilty after paying again.",
             });
         }
-        bilty.formData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : "") });
+        const nextFormData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : "") });
+        if (typeof req.user.biltyAccessFreightAmount === "number") {
+            nextFormData.freight = String(req.user.biltyAccessFreightAmount);
+        }
+        bilty.formData = nextFormData;
         bilty.status = "draft";
         yield bilty.save();
         const populatedBilty = yield bilty_1.default.findById(bilty._id).populate("createdBy", "name phone role");

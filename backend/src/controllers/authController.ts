@@ -14,6 +14,7 @@ const sanitizeUser = (user: {
   biltyAccessPaidAt?: Date | string | null;
   biltyAccessExpiresAt?: Date | string | null;
   biltyAccessAmount?: number | null;
+  biltyAccessFreightAmount?: number | null;
 }) => ({
   id: String(user._id),
   name: user.name,
@@ -27,6 +28,10 @@ const sanitizeUser = (user: {
     ? new Date(user.biltyAccessExpiresAt).toISOString()
     : null,
   biltyAccessAmount: typeof user.biltyAccessAmount === "number" ? user.biltyAccessAmount : 0,
+  biltyAccessFreightAmount:
+    typeof user.biltyAccessFreightAmount === "number"
+      ? user.biltyAccessFreightAmount
+      : null,
 });
 
 export const register = async (req: Request, res: Response) => {

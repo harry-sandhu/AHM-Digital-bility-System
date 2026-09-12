@@ -7,11 +7,12 @@ import {
   allocateConsignmentNumber,
   NO_CONSIGNMENT_NUMBERS_ERROR,
 } from "../utils/numberRange";
+import { getBiltyAccessAmount } from "../utils/biltyPricing";
 
 const canManageAllBilties = (role?: string) =>
   role === "superadmin" || role === "admin";
 
-const BILTY_ACCESS_AMOUNT = 300;
+const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 
 const getLocalMidnightDeadline = (fromDate = new Date()) => {
   const deadline = new Date(fromDate);
@@ -31,6 +32,7 @@ const serializeBiltyAccess = (user: {
   biltyAccessPaidAt?: Date | string | null;
   biltyAccessExpiresAt?: Date | string | null;
   biltyAccessAmount?: number | null;
+  biltyAccessFreightAmount?: number | null;
 }) => ({
   biltyAccessPaidAt: user.biltyAccessPaidAt
     ? new Date(user.biltyAccessPaidAt).toISOString()
@@ -40,6 +42,10 @@ const serializeBiltyAccess = (user: {
     : null,
   biltyAccessAmount:
     typeof user.biltyAccessAmount === "number" ? user.biltyAccessAmount : 0,
+  biltyAccessFreightAmount:
+    typeof user.biltyAccessFreightAmount === "number"
+      ? user.biltyAccessFreightAmount
+      : null,
 });
 
 const getBiltyStatus = (expiresAt?: Date | string | null) =>
@@ -70,7 +76,7 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
         consignmentNo: activeBilty.consignmentNo,
         expiresAt: activeBilty.expiresAt,
         paymentAmount:
-          activeBilty.paymentAmount || req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
+          activeBilty.paymentAmount || req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
       });
     }
 
@@ -105,7 +111,7 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
       createdBy: req.user._id,
       formData: {},
       status: getBiltyStatus(expiresAt),
-      paymentAmount: req.user.biltyAccessAmount || BILTY_ACCESS_AMOUNT,
+      paymentAmount: req.user.biltyAccessAmount || DEFAULT_BILTY_ACCESS_AMOUNT,
       paymentPaidAt: req.user.biltyAccessPaidAt || new Date(),
       paymentExpiresAt: expiresAt,
       expiresAt,
@@ -130,6 +136,14 @@ export const purchaseBiltyAccess = async (req: AuthRequest, res: Response) => {
   }
 
   try {
+    const freightAmount = Number(req.body?.freightAmount);
+
+    if (!Number.isFinite(freightAmount) || freightAmount <= 0) {
+      return res.status(400).json({
+        error: "A valid freight amount greater than zero is required",
+      });
+    }
+
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -160,10 +174,12 @@ export const purchaseBiltyAccess = async (req: AuthRequest, res: Response) => {
     }
 
     const expiresAt = getLocalMidnightDeadline(now);
+    const biltyAccessAmount = getBiltyAccessAmount(freightAmount);
 
     user.biltyAccessPaidAt = now;
     user.biltyAccessExpiresAt = expiresAt;
-    user.biltyAccessAmount = BILTY_ACCESS_AMOUNT;
+    user.biltyAccessAmount = biltyAccessAmount;
+    user.biltyAccessFreightAmount = freightAmount;
     await user.save();
 
     res.status(200).json({
@@ -214,10 +230,16 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    bilty.formData = {
+    const nextFormData: Record<string, unknown> = {
       ...(formData && typeof formData === "object" ? formData : {}),
       consignmentNo: String(bilty.consignmentNo ?? ""),
     };
+
+    if (typeof req.user.biltyAccessFreightAmount === "number") {
+      nextFormData.freight = String(req.user.biltyAccessFreightAmount);
+    }
+
+    bilty.formData = nextFormData;
     bilty.status = "draft";
     await bilty.save();
 

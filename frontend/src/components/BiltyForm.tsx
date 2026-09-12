@@ -76,6 +76,10 @@ const BiltyForm: React.FC = () => {
         setFormData({
           ...initialBiltyFormData,
           ...storedDraft.formData,
+          freight:
+            typeof user.biltyAccessFreightAmount === "number"
+              ? String(user.biltyAccessFreightAmount)
+              : storedDraft.formData.freight || "",
           bookingClerk: storedDraft.formData.bookingClerk || user.name || "",
         });
         setHasSavedBilty(storedDraft.hasSavedBilty);
@@ -104,6 +108,10 @@ const BiltyForm: React.FC = () => {
           ...prev,
           biltyNumber: response.data.biltyNumber,
           consignmentNo: String(response.data.consignmentNo),
+          freight:
+            typeof user.biltyAccessFreightAmount === "number"
+              ? String(user.biltyAccessFreightAmount)
+              : prev.freight,
           bookingClerk: prev.bookingClerk || user.name || "",
         }));
         setStatusMessage(
@@ -241,7 +249,11 @@ const BiltyForm: React.FC = () => {
 
         <div className="print-pages">
           <div className="print-page print-bilty-page">
-            <BiltyDocument formData={formData} onChange={handleChange} />
+            <BiltyDocument
+              formData={formData}
+              onChange={handleChange}
+              freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
+            />
           </div>
         </div>
       </div>

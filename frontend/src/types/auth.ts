@@ -9,6 +9,7 @@ export interface AuthUser {
   biltyAccessPaidAt?: string | null;
   biltyAccessExpiresAt?: string | null;
   biltyAccessAmount?: number;
+  biltyAccessFreightAmount?: number | null;
 }
 
 export interface AuthPayload {

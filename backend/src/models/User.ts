@@ -11,6 +11,7 @@ export interface IUser extends Document {
   biltyAccessPaidAt?: Date;
   biltyAccessExpiresAt?: Date;
   biltyAccessAmount?: number;
+  biltyAccessFreightAmount?: number;
 }
 
 const userSchema = new Schema<IUser>(
@@ -27,6 +28,7 @@ const userSchema = new Schema<IUser>(
     biltyAccessPaidAt: { type: Date },
     biltyAccessExpiresAt: { type: Date },
     biltyAccessAmount: { type: Number, default: 0 },
+    biltyAccessFreightAmount: { type: Number },
   },
   {
     timestamps: true,

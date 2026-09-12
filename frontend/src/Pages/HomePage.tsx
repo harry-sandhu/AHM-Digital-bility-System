@@ -17,7 +17,7 @@ const HomePage: React.FC = () => {
   const hasActivePayment = Boolean(
     paymentDeadline && paymentDeadline.getTime() >= Date.now()
   );
-  const paymentAmount = user?.biltyAccessAmount || 300;
+  const paymentAmount = user?.biltyAccessAmount || 200;
 
   const handleStartBiltyFlow = () => {
     if (!hasAcceptedTerms) {
@@ -52,7 +52,7 @@ const HomePage: React.FC = () => {
     },
     {
       title: "Payment",
-      value: hasActivePayment ? "Active" : "₹300",
+      value: hasActivePayment ? "Active" : "From ₹200",
       description: hasActivePayment
         ? `Bilty access is active until ${paymentDeadline?.toLocaleString() || "midnight"}.`
         : "Payment is required before bilty number generation.",
