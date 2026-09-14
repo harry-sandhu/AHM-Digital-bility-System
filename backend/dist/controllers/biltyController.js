@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteBilty = exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
 const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
+const NumberRange_1 = __importDefault(require("../models/NumberRange"));
 const User_1 = __importDefault(require("../models/User"));
 const numberRange_1 = require("../utils/numberRange");
 const biltyPricing_1 = require("../utils/biltyPricing");
@@ -266,6 +267,21 @@ const deleteBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         const bilty = yield bilty_1.default.findByIdAndDelete(req.params.id);
         if (!bilty) {
             return res.status(404).json({ error: "Bilty not found" });
+        }
+        const deletedConsignmentNo = bilty.consignmentNo;
+        const deletedOwner = bilty.createdBy;
+        if (typeof deletedConsignmentNo === "number") {
+            const range = yield NumberRange_1.default.findOne({
+                rangeStart: { $lte: deletedConsignmentNo },
+                rangeEnd: { $gte: deletedConsignmentNo },
+                $or: [
+                    { scope: "master" },
+                    { scope: "personal", userId: deletedOwner },
+                ],
+            });
+            if (range) {
+                yield (0, numberRange_1.resetRangeToFirstAvailable)(range._id);
+            }
         }
         return res.json({ message: "Bilty deleted successfully" });
     }

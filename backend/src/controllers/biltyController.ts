@@ -1,11 +1,13 @@
 import { Response } from "express";
 import Bilty from "../models/bilty";
 import BiltyCounter from "../models/BiltyCounter";
+import NumberRange from "../models/NumberRange";
 import User from "../models/User";
 import { AuthRequest } from "../middleware/auth";
 import {
   allocateConsignmentNumber,
   NO_CONSIGNMENT_NUMBERS_ERROR,
+  resetRangeToFirstAvailable,
 } from "../utils/numberRange";
 import { getBiltyAccessAmount } from "../utils/biltyPricing";
 
@@ -357,6 +359,24 @@ export const deleteBilty = async (req: AuthRequest, res: Response) => {
 
     if (!bilty) {
       return res.status(404).json({ error: "Bilty not found" });
+    }
+
+    const deletedConsignmentNo = bilty.consignmentNo;
+    const deletedOwner = bilty.createdBy;
+
+    if (typeof deletedConsignmentNo === "number") {
+      const range = await NumberRange.findOne({
+        rangeStart: { $lte: deletedConsignmentNo },
+        rangeEnd: { $gte: deletedConsignmentNo },
+        $or: [
+          { scope: "master" },
+          { scope: "personal", userId: deletedOwner },
+        ],
+      });
+
+      if (range) {
+        await resetRangeToFirstAvailable(range._id);
+      }
     }
 
     return res.json({ message: "Bilty deleted successfully" });
