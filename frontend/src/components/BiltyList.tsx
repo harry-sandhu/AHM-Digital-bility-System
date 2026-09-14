@@ -32,9 +32,14 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-            Bilty Number
+            Consignment Note No.
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{bilty.biltyNumber}</p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            {bilty.consignmentNo ?? "—"}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            System Bilty ID: {bilty.biltyNumber}
+          </p>
         </div>
 
         <div className="flex flex-col items-end gap-3">
