@@ -5,92 +5,81 @@ import NumberRange from "../models/NumberRange";
 export const NO_CONSIGNMENT_NUMBERS_ERROR =
   "No consignment numbers available. Contact admin.";
 
-const findAvailableRange = async (userId: Types.ObjectId) => {
-  const personal = await NumberRange.findOne({
+const findAvailableRanges = async (userId: Types.ObjectId) => {
+  const personal = await NumberRange.find({
     scope: "personal",
     userId,
     isActive: true,
-    isExhausted: false,
   }).sort({ createdAt: 1 });
 
-  if (personal) {
-    return personal;
-  }
-
-  return NumberRange.findOne({
+  const master = await NumberRange.find({
     scope: "master",
     isActive: true,
-    isExhausted: false,
   }).sort({ createdAt: 1 });
+
+  return [...personal, ...master];
+};
+
+const getUsedNumbers = async (rangeStart: number, rangeEnd: number) => {
+  const usedBilties = await Bilty.find({
+    consignmentNo: { $gte: rangeStart, $lte: rangeEnd },
+  })
+    .select("consignmentNo")
+    .lean();
+
+  return new Set(
+    usedBilties
+      .map((bilty) => bilty.consignmentNo)
+      .filter((number): number is number => typeof number === "number")
+  );
 };
 
 export const allocateConsignmentNumber = async (
   userId: Types.ObjectId
 ): Promise<number> => {
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const range = await findAvailableRange(userId);
-
-    if (!range) {
+    const ranges = await findAvailableRanges(userId);
+    if (!ranges.length) {
       throw new Error(NO_CONSIGNMENT_NUMBERS_ERROR);
     }
 
-    const candidate = range.nextNumber;
+    for (const range of ranges) {
+      const usedNumbers = await getUsedNumbers(range.rangeStart, range.rangeEnd);
+      let candidate = range.rangeStart;
 
-    if (candidate > range.rangeEnd) {
-      await NumberRange.updateOne(
-        { _id: range._id, nextNumber: candidate },
-        { $set: { isExhausted: true } }
-      );
-      continue;
-    }
+      while (candidate <= range.rangeEnd && usedNumbers.has(candidate)) {
+        candidate += 1;
+      }
 
-    // A deleted number may create a gap behind nextNumber. Skip numbers that
-    // are still in use before reserving the next candidate.
-    const alreadyUsed = await Bilty.exists({ consignmentNo: candidate });
-    if (alreadyUsed) {
-      const skipped = await NumberRange.findOneAndUpdate(
+      if (candidate > range.rangeEnd) {
+        await NumberRange.updateOne(
+          { _id: range._id, isActive: true },
+          { $set: { nextNumber: candidate, isExhausted: true } }
+        );
+        continue;
+      }
+
+      // Match the stored value so concurrent requests cannot reserve the same
+      // range state. The next allocation will rescan the range if this loses.
+      const updated = await NumberRange.findOneAndUpdate(
         {
           _id: range._id,
-          nextNumber: candidate,
+          nextNumber: range.nextNumber,
           isActive: true,
-          isExhausted: false,
         },
-        { $inc: { nextNumber: 1 } },
+        {
+          $set: {
+            nextNumber: candidate + 1,
+            isExhausted: candidate >= range.rangeEnd,
+          },
+        },
         { new: true }
       );
 
-      if (skipped && skipped.nextNumber > skipped.rangeEnd) {
-        await NumberRange.updateOne(
-          { _id: skipped._id, nextNumber: skipped.nextNumber },
-          { $set: { isExhausted: true } }
-        );
+      if (updated) {
+        return candidate;
       }
-      continue;
     }
-
-    const updated = await NumberRange.findOneAndUpdate(
-      {
-        _id: range._id,
-        nextNumber: candidate,
-        isActive: true,
-        isExhausted: false,
-      },
-      { $inc: { nextNumber: 1 } },
-      { new: true }
-    );
-
-    if (!updated) {
-      continue;
-    }
-
-    if (updated.nextNumber > updated.rangeEnd) {
-      await NumberRange.updateOne(
-        { _id: updated._id, nextNumber: updated.nextNumber },
-        { $set: { isExhausted: true } }
-      );
-    }
-
-    return candidate;
   }
 
   throw new Error(NO_CONSIGNMENT_NUMBERS_ERROR);
@@ -102,20 +91,7 @@ export const resetRangeToFirstAvailable = async (rangeId: Types.ObjectId) => {
     return;
   }
 
-  const usedBilties = await Bilty.find({
-    consignmentNo: {
-      $gte: range.rangeStart,
-      $lte: range.rangeEnd,
-    },
-  })
-    .select("consignmentNo")
-    .lean();
-
-  const usedNumbers = new Set(
-    usedBilties
-      .map((bilty) => bilty.consignmentNo)
-      .filter((number): number is number => typeof number === "number")
-  );
+  const usedNumbers = await getUsedNumbers(range.rangeStart, range.rangeEnd);
 
   let nextNumber = range.rangeStart;
   while (nextNumber <= range.rangeEnd && usedNumbers.has(nextNumber)) {

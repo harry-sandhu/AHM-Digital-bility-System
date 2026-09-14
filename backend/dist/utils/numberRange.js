@@ -16,61 +16,60 @@ exports.resetRangeToFirstAvailable = exports.allocateConsignmentNumber = exports
 const bilty_1 = __importDefault(require("../models/bilty"));
 const NumberRange_1 = __importDefault(require("../models/NumberRange"));
 exports.NO_CONSIGNMENT_NUMBERS_ERROR = "No consignment numbers available. Contact admin.";
-const findAvailableRange = (userId) => __awaiter(void 0, void 0, void 0, function* () {
-    const personal = yield NumberRange_1.default.findOne({
+const findAvailableRanges = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const personal = yield NumberRange_1.default.find({
         scope: "personal",
         userId,
         isActive: true,
-        isExhausted: false,
     }).sort({ createdAt: 1 });
-    if (personal) {
-        return personal;
-    }
-    return NumberRange_1.default.findOne({
+    const master = yield NumberRange_1.default.find({
         scope: "master",
         isActive: true,
-        isExhausted: false,
     }).sort({ createdAt: 1 });
+    return [...personal, ...master];
+});
+const getUsedNumbers = (rangeStart, rangeEnd) => __awaiter(void 0, void 0, void 0, function* () {
+    const usedBilties = yield bilty_1.default.find({
+        consignmentNo: { $gte: rangeStart, $lte: rangeEnd },
+    })
+        .select("consignmentNo")
+        .lean();
+    return new Set(usedBilties
+        .map((bilty) => bilty.consignmentNo)
+        .filter((number) => typeof number === "number"));
 });
 const allocateConsignmentNumber = (userId) => __awaiter(void 0, void 0, void 0, function* () {
     for (let attempt = 0; attempt < 100; attempt += 1) {
-        const range = yield findAvailableRange(userId);
-        if (!range) {
+        const ranges = yield findAvailableRanges(userId);
+        if (!ranges.length) {
             throw new Error(exports.NO_CONSIGNMENT_NUMBERS_ERROR);
         }
-        const candidate = range.nextNumber;
-        if (candidate > range.rangeEnd) {
-            yield NumberRange_1.default.updateOne({ _id: range._id, nextNumber: candidate }, { $set: { isExhausted: true } });
-            continue;
-        }
-        // A deleted number may create a gap behind nextNumber. Skip numbers that
-        // are still in use before reserving the next candidate.
-        const alreadyUsed = yield bilty_1.default.exists({ consignmentNo: candidate });
-        if (alreadyUsed) {
-            const skipped = yield NumberRange_1.default.findOneAndUpdate({
-                _id: range._id,
-                nextNumber: candidate,
-                isActive: true,
-                isExhausted: false,
-            }, { $inc: { nextNumber: 1 } }, { new: true });
-            if (skipped && skipped.nextNumber > skipped.rangeEnd) {
-                yield NumberRange_1.default.updateOne({ _id: skipped._id, nextNumber: skipped.nextNumber }, { $set: { isExhausted: true } });
+        for (const range of ranges) {
+            const usedNumbers = yield getUsedNumbers(range.rangeStart, range.rangeEnd);
+            let candidate = range.rangeStart;
+            while (candidate <= range.rangeEnd && usedNumbers.has(candidate)) {
+                candidate += 1;
             }
-            continue;
+            if (candidate > range.rangeEnd) {
+                yield NumberRange_1.default.updateOne({ _id: range._id, isActive: true }, { $set: { nextNumber: candidate, isExhausted: true } });
+                continue;
+            }
+            // Match the stored value so concurrent requests cannot reserve the same
+            // range state. The next allocation will rescan the range if this loses.
+            const updated = yield NumberRange_1.default.findOneAndUpdate({
+                _id: range._id,
+                nextNumber: range.nextNumber,
+                isActive: true,
+            }, {
+                $set: {
+                    nextNumber: candidate + 1,
+                    isExhausted: candidate >= range.rangeEnd,
+                },
+            }, { new: true });
+            if (updated) {
+                return candidate;
+            }
         }
-        const updated = yield NumberRange_1.default.findOneAndUpdate({
-            _id: range._id,
-            nextNumber: candidate,
-            isActive: true,
-            isExhausted: false,
-        }, { $inc: { nextNumber: 1 } }, { new: true });
-        if (!updated) {
-            continue;
-        }
-        if (updated.nextNumber > updated.rangeEnd) {
-            yield NumberRange_1.default.updateOne({ _id: updated._id, nextNumber: updated.nextNumber }, { $set: { isExhausted: true } });
-        }
-        return candidate;
     }
     throw new Error(exports.NO_CONSIGNMENT_NUMBERS_ERROR);
 });
@@ -80,17 +79,7 @@ const resetRangeToFirstAvailable = (rangeId) => __awaiter(void 0, void 0, void 0
     if (!range) {
         return;
     }
-    const usedBilties = yield bilty_1.default.find({
-        consignmentNo: {
-            $gte: range.rangeStart,
-            $lte: range.rangeEnd,
-        },
-    })
-        .select("consignmentNo")
-        .lean();
-    const usedNumbers = new Set(usedBilties
-        .map((bilty) => bilty.consignmentNo)
-        .filter((number) => typeof number === "number"));
+    const usedNumbers = yield getUsedNumbers(range.rangeStart, range.rangeEnd);
     let nextNumber = range.rangeStart;
     while (nextNumber <= range.rangeEnd && usedNumbers.has(nextNumber)) {
         nextNumber += 1;
