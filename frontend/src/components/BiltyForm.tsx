@@ -203,6 +203,20 @@ const BiltyForm: React.FC = () => {
 
     try {
       const response = await createBilty({ biltyId, formData });
+      const savedFormData = response.data.bilty.formData;
+      if (savedFormData) {
+        setFormData((current) =>
+          calculateBiltyTotals({
+            ...current,
+            ...savedFormData,
+            biltyNumber: current.biltyNumber,
+            consignmentNo: current.consignmentNo,
+            gstPaidBy: savedFormData.gstPaidBy || current.gstPaidBy || "Consignor",
+            basisOfBooking:
+              savedFormData.basisOfBooking || current.basisOfBooking || "To Pay",
+          })
+        );
+      }
       setHasSavedBilty(true);
       setStatusMessage(
         response.data.message ||

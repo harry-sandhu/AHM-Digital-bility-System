@@ -379,14 +379,14 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                     type="radio"
                                     name="gstPaidBy"
                                     value={option}
-                                    checked={formData.gstPaidBy === option}
+                                    checked={(formData.gstPaidBy || "Consignor") === option}
                                     onChange={onChange}
                                 />
                                 {option}
                             </label>
                         ) : (
                             <span key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
-                                <span>{formData.gstPaidBy === option ? "◉" : "○"}</span>
+                                <span>{(formData.gstPaidBy || "Consignor") === option ? "◉" : "○"}</span>
                                 {option}
                             </span>
                         ),
@@ -571,14 +571,14 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                             type="radio"
                                             name="basisOfBooking"
                                             value={option}
-                                            checked={formData.basisOfBooking === option}
+                                            checked={(formData.basisOfBooking || "To Pay") === option}
                                             onChange={onChange}
                                         />
                                         {option}
                                     </label>
                                 ) : (
                                     <span key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
-                                        <span>{formData.basisOfBooking === option ? "◉" : "○"}</span>
+                                        <span>{(formData.basisOfBooking || "To Pay") === option ? "◉" : "○"}</span>
                                         {option}
                                     </span>
                                 ),

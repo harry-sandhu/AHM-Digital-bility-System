@@ -179,7 +179,11 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             });
         }
         const isOwner = String(bilty.createdBy) === String(req.user._id);
-        const nextFormData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : "") });
+        const nextFormData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : ""), gstPaidBy: typeof (formData === null || formData === void 0 ? void 0 : formData.gstPaidBy) === "string" && formData.gstPaidBy
+                ? formData.gstPaidBy
+                : "Consignor", basisOfBooking: typeof (formData === null || formData === void 0 ? void 0 : formData.basisOfBooking) === "string" && formData.basisOfBooking
+                ? formData.basisOfBooking
+                : "To Pay" });
         if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
             nextFormData.freight = String(req.user.biltyAccessFreightAmount);
         }

@@ -229,6 +229,14 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
     const nextFormData: Record<string, unknown> = {
       ...(formData && typeof formData === "object" ? formData : {}),
       consignmentNo: String(bilty.consignmentNo ?? ""),
+      gstPaidBy:
+        typeof formData?.gstPaidBy === "string" && formData.gstPaidBy
+          ? formData.gstPaidBy
+          : "Consignor",
+      basisOfBooking:
+        typeof formData?.basisOfBooking === "string" && formData.basisOfBooking
+          ? formData.basisOfBooking
+          : "To Pay",
     };
 
     if (isOwner && typeof req.user.biltyAccessFreightAmount === "number") {
