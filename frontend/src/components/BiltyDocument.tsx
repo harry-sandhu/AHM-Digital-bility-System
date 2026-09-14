@@ -377,7 +377,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
                                 <input
                                     type="radio"
-                                    name="gstPaidBy"
+                                    name={`gstPaidBy-${basisCopy ? "copy" : "primary"}`}
                                     value={option}
                                     checked={(formData.gstPaidBy || "Consignor") === option}
                                     onChange={onChange}
@@ -569,7 +569,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                     <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
                                         <input
                                             type="radio"
-                                            name="basisOfBooking"
+                                            name={`basisOfBooking-${basisCopy ? "copy" : "primary"}`}
                                             value={option}
                                             checked={(formData.basisOfBooking || "To Pay") === option}
                                             onChange={onChange}
