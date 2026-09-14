@@ -159,24 +159,17 @@ export const purchaseBiltyAccess = async (req: AuthRequest, res: Response) => {
       ? new Date(user.biltyAccessExpiresAt)
       : null;
 
-    if (existingExpiry && existingExpiry.getTime() >= now.getTime()) {
-      return res.status(200).json({
-        message: "Bilty access is already active",
-        user: {
-          id: String(user._id),
-          name: user.name,
-          phone: user.phone,
-          role: user.role,
-          isActive: user.isActive,
-          ...serializeBiltyAccess(user),
-        },
-      });
-    }
-
-    const expiresAt = getIndianMidnightDeadline(now);
+    const hasExistingAccess = Boolean(
+      existingExpiry && existingExpiry.getTime() >= now.getTime()
+    );
+    const expiresAt = hasExistingAccess && existingExpiry
+      ? existingExpiry
+      : getIndianMidnightDeadline(now);
     const biltyAccessAmount = getBiltyAccessAmount(freightAmount);
 
-    user.biltyAccessPaidAt = now;
+    if (!hasExistingAccess) {
+      user.biltyAccessPaidAt = now;
+    }
     user.biltyAccessExpiresAt = expiresAt;
     user.biltyAccessAmount = biltyAccessAmount;
     user.biltyAccessFreightAmount = freightAmount;

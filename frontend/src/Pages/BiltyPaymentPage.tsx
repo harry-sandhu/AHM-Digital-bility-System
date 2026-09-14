@@ -43,11 +43,6 @@ const BiltyPaymentPage: React.FC = () => {
   const handleContinue = async () => {
     setError("");
 
-    if (hasActivePayment) {
-      navigate("/bilty");
-      return;
-    }
-
     if (!hasValidFreightAmount) {
       setError("Enter a valid freight amount greater than zero.");
       return;
