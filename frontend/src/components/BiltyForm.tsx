@@ -86,6 +86,8 @@ const BiltyForm: React.FC = () => {
         setFormData({
           ...initialBiltyFormData,
           ...storedDraft.formData,
+          gstPaidBy: storedDraft.formData.gstPaidBy || "Consignor",
+          basisOfBooking: storedDraft.formData.basisOfBooking || "To Pay",
           freight:
             typeof user.biltyAccessFreightAmount === "number"
               ? String(user.biltyAccessFreightAmount)

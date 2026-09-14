@@ -53,7 +53,7 @@ export const initialBiltyFormData: BiltyFormState = {
   insuranceCertNo: "",
   insuranceAmount: "",
   biltyNumber: "",
-  gstPaidBy: "",
+  gstPaidBy: "Consignor",
   basisOfBooking: "To Pay",
   consignorAddress: "",
   consignorGstin: "",
@@ -113,5 +113,6 @@ export const normalizeBiltyFormData = (
   calculateBiltyTotals({
     ...initialBiltyFormData,
     ...(formData || {}),
+    gstPaidBy: formData?.gstPaidBy || "Consignor",
     basisOfBooking: formData?.basisOfBooking || "To Pay",
   });
