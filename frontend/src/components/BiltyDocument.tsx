@@ -119,7 +119,7 @@ const DateInput: React.FC<InputHTMLAttributes<HTMLInputElement> & { bordered?: b
         <svg
             aria-hidden="true"
             viewBox="0 0 24 24"
-            className="pointer-events-none absolute left-[0.25em] top-1/2 h-[1.1em] w-[1.1em] -translate-y-1/2 text-black"
+            className="pointer-events-none absolute right-[0.25em] top-1/2 h-[1.1em] w-[1.1em] -translate-y-1/2 text-black"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -129,7 +129,8 @@ const DateInput: React.FC<InputHTMLAttributes<HTMLInputElement> & { bordered?: b
         </svg>
         <input
             {...props}
-            className={`w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[1.55em] pr-[0.2em] text-[1.3em] leading-tight outline-none ${className}`}
+            className={`w-full min-w-0 appearance-none overflow-hidden text-ellipsis whitespace-nowrap ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] pr-[1.55em] text-[1.3em] leading-tight outline-none ${className}`}
+            style={{ appearance: "none", WebkitAppearance: "none" }}
         />
     </div>
 );
