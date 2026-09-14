@@ -53,7 +53,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
             disabled={!hasDocumentData}
             size="sm"
           />
-          {role === "superadmin" && status !== "expired" ? (
+          {role === "superadmin" ? (
             <button
               type="button"
               onClick={() => navigate(`/bilty/edit/${bilty._id}`)}

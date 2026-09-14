@@ -18,17 +18,23 @@ const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const User_1 = __importDefault(require("../models/User"));
 const numberRange_1 = require("../utils/numberRange");
 const biltyPricing_1 = require("../utils/biltyPricing");
-const canManageAllBilties = (role) => role === "superadmin" || role === "admin";
+const canManageAllBilties = (role) => role === "superadmin";
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 const parseAmount = (value) => {
     const parsed = Number(String(value !== null && value !== void 0 ? value : "").replace(/,/g, ""));
     return Number.isFinite(parsed) ? parsed : 0;
 };
 const formatAmount = (value) => Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-const getLocalMidnightDeadline = (fromDate = new Date()) => {
-    const deadline = new Date(fromDate);
-    deadline.setHours(23, 59, 59, 999);
-    return deadline;
+const getIndianMidnightDeadline = (fromDate = new Date()) => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(fromDate);
+    const getPart = (type) => { var _a; return (_a = parts.find((part) => part.type === type)) === null || _a === void 0 ? void 0 : _a.value; };
+    const indianDate = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+    return new Date(`${indianDate}T23:59:59.999+05:30`);
 };
 const isPastDeadline = (deadline) => {
     if (!deadline) {
@@ -74,7 +80,7 @@ const generateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* 
         const biltyNumber = `${prefix}-${String(counter.counter).padStart(4, "0")}`;
         const expiresAt = req.user.biltyAccessExpiresAt
             ? new Date(req.user.biltyAccessExpiresAt)
-            : getLocalMidnightDeadline();
+            : getIndianMidnightDeadline();
         const bilty = yield bilty_1.default.create({
             biltyNumber,
             consignmentNo,
@@ -129,7 +135,7 @@ const purchaseBiltyAccess = (req, res) => __awaiter(void 0, void 0, void 0, func
                 user: Object.assign({ id: String(user._id), name: user.name, phone: user.phone, role: user.role, isActive: user.isActive }, serializeBiltyAccess(user)),
             });
         }
-        const expiresAt = getLocalMidnightDeadline(now);
+        const expiresAt = getIndianMidnightDeadline(now);
         const biltyAccessAmount = (0, biltyPricing_1.getBiltyAccessAmount)(freightAmount);
         user.biltyAccessPaidAt = now;
         user.biltyAccessExpiresAt = expiresAt;
@@ -162,7 +168,8 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             !canManageAllBilties(req.user.role)) {
             return res.status(403).json({ error: "Access denied" });
         }
-        if (bilty.expiresAt && isPastDeadline(bilty.expiresAt)) {
+        const isExpired = Boolean(bilty.expiresAt && isPastDeadline(bilty.expiresAt));
+        if (isExpired && req.user.role !== "superadmin") {
             if (bilty.status !== "expired") {
                 bilty.status = "expired";
                 yield bilty.save();
@@ -184,7 +191,7 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         nextFormData.grandTotal = formatAmount(grandTotal);
         nextFormData.balanceAmt = formatAmount(grandTotal - parseAmount(nextFormData.advance));
         bilty.formData = nextFormData;
-        bilty.status = "draft";
+        bilty.status = isExpired ? "expired" : "draft";
         yield bilty.save();
         const populatedBilty = yield bilty_1.default.findById(bilty._id).populate("createdBy", "name phone role");
         res.json({

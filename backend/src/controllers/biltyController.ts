@@ -10,7 +10,7 @@ import {
 import { getBiltyAccessAmount } from "../utils/biltyPricing";
 
 const canManageAllBilties = (role?: string) =>
-  role === "superadmin" || role === "admin";
+  role === "superadmin";
 
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 
@@ -22,10 +22,17 @@ const parseAmount = (value: unknown) => {
 const formatAmount = (value: number) =>
   Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 
-const getLocalMidnightDeadline = (fromDate = new Date()) => {
-  const deadline = new Date(fromDate);
-  deadline.setHours(23, 59, 59, 999);
-  return deadline;
+const getIndianMidnightDeadline = (fromDate = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(fromDate);
+  const getPart = (type: string) => parts.find((part) => part.type === type)?.value;
+  const indianDate = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+
+  return new Date(`${indianDate}T23:59:59.999+05:30`);
 };
 
 const isPastDeadline = (deadline?: Date | string | null) => {
@@ -94,7 +101,7 @@ export const generateBilty = async (req: AuthRequest, res: Response) => {
     const biltyNumber = `${prefix}-${String(counter.counter).padStart(4, "0")}`;
     const expiresAt = req.user.biltyAccessExpiresAt
       ? new Date(req.user.biltyAccessExpiresAt)
-      : getLocalMidnightDeadline();
+      : getIndianMidnightDeadline();
 
     const bilty = await Bilty.create({
       biltyNumber,
@@ -164,7 +171,7 @@ export const purchaseBiltyAccess = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const expiresAt = getLocalMidnightDeadline(now);
+    const expiresAt = getIndianMidnightDeadline(now);
     const biltyAccessAmount = getBiltyAccessAmount(freightAmount);
 
     user.biltyAccessPaidAt = now;
@@ -210,7 +217,9 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: "Access denied" });
     }
 
-    if (bilty.expiresAt && isPastDeadline(bilty.expiresAt)) {
+    const isExpired = Boolean(bilty.expiresAt && isPastDeadline(bilty.expiresAt));
+
+    if (isExpired && req.user.role !== "superadmin") {
       if (bilty.status !== "expired") {
         bilty.status = "expired";
         await bilty.save();
@@ -243,7 +252,7 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
     );
 
     bilty.formData = nextFormData;
-    bilty.status = "draft";
+    bilty.status = isExpired ? "expired" : "draft";
     await bilty.save();
 
     const populatedBilty = await Bilty.findById(bilty._id).populate(
