@@ -34,3 +34,6 @@ export const getAllBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/all"
 
 export const getBilty = (id: string) =>
   axiosInstance.get<BiltyRecord>(`/bilty/${id}`);
+
+export const deleteBilty = (id: string) =>
+  axiosInstance.delete<{ message: string }>(`/bilty/${id}`);

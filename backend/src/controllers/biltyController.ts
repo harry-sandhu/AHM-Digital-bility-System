@@ -346,3 +346,21 @@ export const getAllBilty = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: "Failed to fetch bilty records" });
   }
 };
+
+export const deleteBilty = async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== "superadmin") {
+    return res.status(403).json({ error: "Superadmin access required" });
+  }
+
+  try {
+    const bilty = await Bilty.findByIdAndDelete(req.params.id);
+
+    if (!bilty) {
+      return res.status(404).json({ error: "Bilty not found" });
+    }
+
+    return res.json({ message: "Bilty deleted successfully" });
+  } catch {
+    return res.status(500).json({ error: "Failed to delete bilty" });
+  }
+};

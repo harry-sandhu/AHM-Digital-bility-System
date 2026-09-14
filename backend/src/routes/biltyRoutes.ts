@@ -6,6 +6,7 @@ import {
   getBiltyById,
   getAllBilty,
   getMyBilty,
+  deleteBilty,
 } from "../controllers/biltyController";
 import authMiddleware from "../middleware/auth";
 import authorize from "../middleware/authorize";
@@ -23,5 +24,6 @@ router.get(
 );
 router.get("/:id", authMiddleware, getBiltyById);
 router.put("/:id", authMiddleware, updateBilty);
+router.delete("/:id", authMiddleware, authorize("superadmin"), deleteBilty);
 
 export default router;

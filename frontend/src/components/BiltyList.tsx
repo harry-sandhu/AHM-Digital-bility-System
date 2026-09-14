@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllBilties, getMyBilties } from "../api/biltyApi";
+import { deleteBilty, getAllBilties, getMyBilties } from "../api/biltyApi";
 import { useAuth } from "../context/AuthContext";
 import type { BiltyRecord } from "../types/bilty";
 import {
@@ -12,9 +12,10 @@ import BiltyDownloadButtons from "./BiltyDownloadButtons";
 type BiltyCardProps = {
   bilty: BiltyRecord;
   role?: string;
+  onDelete?: (bilty: BiltyRecord) => void;
 };
 
-const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
+const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
   const navigate = useNavigate();
   const normalizedFormData: BiltyFormState = normalizeBiltyFormData(bilty.formData);
   const hasDocumentData = Object.values(normalizedFormData).some((value) =>
@@ -54,13 +55,22 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role }) => {
             size="sm"
           />
           {role === "superadmin" ? (
-            <button
-              type="button"
-              onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
-              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
-            >
-              Edit Bilty
-            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
+                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+              >
+                Edit Bilty
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete?.(bilty)}
+                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+              >
+                Delete Bilty
+              </button>
+            </div>
           ) : null}
         </div>
       </div>
@@ -109,6 +119,67 @@ const BiltyList: React.FC = () => {
   const [bilties, setBilties] = useState<BiltyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired">("all");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "biltyAsc" | "biltyDesc" | "deadline">("newest");
+
+  const getStatus = (bilty: BiltyRecord) =>
+    bilty.expiresAt && new Date(bilty.expiresAt).getTime() < Date.now()
+      ? "expired"
+      : "active";
+
+  const visibleBilties = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = bilties.filter((bilty) => {
+      const status = getStatus(bilty);
+      const haystack = [
+        bilty.biltyNumber,
+        bilty.createdBy?.name,
+        bilty.createdBy?.phone,
+        bilty.formData?.from,
+        bilty.formData?.to,
+        bilty.formData?.deliveryAddress,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        (!query || haystack.includes(query)) &&
+        (statusFilter === "all" || status === statusFilter)
+      );
+    });
+
+    return filtered.sort((left, right) => {
+      if (sortBy === "biltyAsc" || sortBy === "biltyDesc") {
+        const result = left.biltyNumber.localeCompare(right.biltyNumber, undefined, {
+          numeric: true,
+        });
+        return sortBy === "biltyAsc" ? result : -result;
+      }
+
+      const leftDate = new Date(
+        sortBy === "deadline" ? left.expiresAt || 0 : left.createdAt || 0
+      ).getTime();
+      const rightDate = new Date(
+        sortBy === "deadline" ? right.expiresAt || 0 : right.createdAt || 0
+      ).getTime();
+      return sortBy === "oldest" ? leftDate - rightDate : rightDate - leftDate;
+    });
+  }, [bilties, search, sortBy, statusFilter]);
+
+  const handleDelete = async (bilty: BiltyRecord) => {
+    if (!window.confirm(`Delete bilty ${bilty.biltyNumber}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteBilty(bilty._id);
+      setBilties((current) => current.filter((item) => item._id !== bilty._id));
+    } catch (err: any) {
+      setError(err?.response?.data?.error || "Failed to delete bilty");
+    }
+  };
 
   useEffect(() => {
     const fetchBilties = async () => {
@@ -147,22 +218,45 @@ const BiltyList: React.FC = () => {
           </p>
         </div>
         <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">
-          {bilties.length} record{bilties.length === 1 ? "" : "s"}
+          {visibleBilties.length} of {bilties.length} record{bilties.length === 1 ? "" : "s"}
         </div>
       </div>
+
+      {role === "superadmin" ? (
+        <div className="mb-5 grid gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 p-4 md:grid-cols-[1.5fr_0.75fr_0.9fr]">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search bilty, user, phone, route..."
+            className="input"
+          />
+          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} className="input">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+          </select>
+          <select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="input">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="biltyAsc">Bilty number A-Z</option>
+            <option value="biltyDesc">Bilty number Z-A</option>
+            <option value="deadline">Deadline</option>
+          </select>
+        </div>
+      ) : null}
 
       {loading ? <p className="text-slate-500">Loading bilties...</p> : null}
       {error ? <p className="text-red-600">{error}</p> : null}
 
-      {!loading && !error && bilties.length === 0 ? (
+      {!loading && !error && visibleBilties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-slate-500">
           No bilty records found yet.
         </div>
       ) : null}
 
       <div className="grid gap-4">
-        {bilties.map((bilty) => (
-          <BiltyCard key={bilty._id} bilty={bilty} role={role || undefined} />
+        {visibleBilties.map((bilty) => (
+          <BiltyCard key={bilty._id} bilty={bilty} role={role || undefined} onDelete={handleDelete} />
         ))}
       </div>
     </div>

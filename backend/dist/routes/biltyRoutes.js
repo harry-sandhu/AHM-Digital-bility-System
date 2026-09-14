@@ -14,4 +14,5 @@ router.get("/my", auth_1.default, biltyController_1.getMyBilty);
 router.get("/all", auth_1.default, (0, authorize_1.default)("superadmin"), biltyController_1.getAllBilty);
 router.get("/:id", auth_1.default, biltyController_1.getBiltyById);
 router.put("/:id", auth_1.default, biltyController_1.updateBilty);
+router.delete("/:id", auth_1.default, (0, authorize_1.default)("superadmin"), biltyController_1.deleteBilty);
 exports.default = router;

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
+exports.deleteBilty = exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
 const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const User_1 = __importDefault(require("../models/User"));
@@ -258,3 +258,19 @@ const getAllBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.getAllBilty = getAllBilty;
+const deleteBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.user || req.user.role !== "superadmin") {
+        return res.status(403).json({ error: "Superadmin access required" });
+    }
+    try {
+        const bilty = yield bilty_1.default.findByIdAndDelete(req.params.id);
+        if (!bilty) {
+            return res.status(404).json({ error: "Bilty not found" });
+        }
+        return res.json({ message: "Bilty deleted successfully" });
+    }
+    catch (_a) {
+        return res.status(500).json({ error: "Failed to delete bilty" });
+    }
+});
+exports.deleteBilty = deleteBilty;
