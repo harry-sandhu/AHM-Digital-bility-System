@@ -245,7 +245,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     readOnly={!editable}
                     staticRender={staticRender}
                     placeholder="Lorry Number"
-                    maxLength={20}
                     autoCapitalize="characters"
                 />
             </PositionedBox>
@@ -264,7 +263,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     readOnly={!editable}
                     staticRender={staticRender}
                     placeholder="Phone Number"
-                    maxLength={15}
                     inputMode="tel"
                 />
             </PositionedBox>
@@ -278,7 +276,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     readOnly={!editable}
                     staticRender={staticRender}
                     placeholder="Delivery Address"
-                    maxLength={130}
                     rows={4}
                 />
             </PositionedBox>
@@ -292,7 +289,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Company"
-                        maxLength={25}
                     />
                     <TextInput
                         name="insurancePolicyNo"
@@ -301,7 +297,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Policy No."
-                        maxLength={25}
                     />
                     <DateInput
                         name="insuranceDate"
@@ -317,7 +312,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="DEC/CERT No."
-                        maxLength={25}
                     />
                     <TextInput
                         name="insuranceAmount"
@@ -326,7 +320,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Amount"
-                        maxLength={14}
                         align="right"
                         inputMode="decimal"
                     />
@@ -343,7 +336,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Consignment Note Number"
-                        maxLength={25}
                     />
                     <DateInput
                         name="biltyDate"
@@ -365,7 +357,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         bordered
                         staticRender={staticRender}
                         placeholder="Invoice Number"
-                        maxLength={40}
                     />
                     <DateInput
                         name="invoiceDate"
@@ -417,7 +408,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        maxLength={110}
                         rows={4}
                     />
                     <TextInput
@@ -427,7 +417,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="GSTIN"
-                        maxLength={15}
                         autoCapitalize="characters"
                     />
                 </div>
@@ -442,7 +431,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        maxLength={110}
                         rows={4}
                     />
                     <TextInput
@@ -452,7 +440,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="GSTIN"
-                        maxLength={15}
                         autoCapitalize="characters"
                     />
                 </div>
@@ -465,7 +452,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        maxLength={24}
                         rows={5}
                     />
                 </div>
@@ -478,7 +464,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        maxLength={24}
                         rows={5}
                     />
                 </div>
@@ -503,7 +488,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="Method Of Packing"
-                            maxLength={25}
                             rows={3}
                         />
                     </div>
@@ -516,7 +500,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="No. of Packages"
-                            maxLength={20}
                             rows={3}
                         />
                     </div>
@@ -532,7 +515,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Description"
-                        maxLength={100}
                         rows={8}
                     />
                 </div>
@@ -549,7 +531,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 readOnly={!editable}
                                 staticRender={staticRender}
                                 placeholder="Actual"
-                                maxLength={14}
                                 rows={3}
                             />
                         </div>
@@ -562,7 +543,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 readOnly={!editable}
                                 staticRender={staticRender}
                                 placeholder="Charged"
-                                maxLength={14}
                                 rows={3}
                             />
                         </div>
@@ -575,7 +555,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 readOnly={!editable}
                                 staticRender={staticRender}
                                 placeholder="Rate"
-                                maxLength={12}
                                 rows={3}
                             />
                         </div>
@@ -666,7 +645,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     readOnly={!editable}
                     staticRender={staticRender}
                     placeholder="Declared Value"
-                    maxLength={25}
                 />
             </PositionedBox>
 
@@ -678,7 +656,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     readOnly={!editable}
                     staticRender={staticRender}
                     placeholder="Driver"
-                    maxLength={30}
                 />
             </PositionedBox>
 
@@ -692,7 +669,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        maxLength={80}
                         rows={3}
                     />
                     <div className="absolute inset-y-0 right-0 w-[25%] border-l border-black bg-white pl-[0.35em]">
@@ -705,7 +681,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="Booking Clerk"
-                            maxLength={30}
                         />
                     </div>
                 </div>
