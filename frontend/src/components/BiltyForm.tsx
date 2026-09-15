@@ -170,7 +170,8 @@ const BiltyForm: React.FC = () => {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
+    const name = e.target.dataset.fieldName || e.target.name;
+    const { value } = e.target;
 
     if (name === "consignmentNo") {
       return;

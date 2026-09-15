@@ -378,6 +378,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 <input
                                     type="radio"
                                     name={`gstPaidBy-${basisCopy ? "copy" : "primary"}`}
+                                    data-field-name="gstPaidBy"
                                     value={option}
                                     checked={(formData.gstPaidBy || "Consignor") === option}
                                     onChange={onChange}
@@ -570,6 +571,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                         <input
                                             type="radio"
                                             name={`basisOfBooking-${basisCopy ? "copy" : "primary"}`}
+                                            data-field-name="basisOfBooking"
                                             value={option}
                                             checked={(formData.basisOfBooking || "To Pay") === option}
                                             onChange={onChange}

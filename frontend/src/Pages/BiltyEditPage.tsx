@@ -47,10 +47,12 @@ const BiltyEditPage: React.FC = () => {
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    const name = event.target.dataset.fieldName || event.target.name;
+
     setFormData((current) =>
       calculateBiltyTotals({
         ...current,
-        [event.target.name]: event.target.value,
+        [name]: event.target.value,
       })
     );
     setMessage("");
