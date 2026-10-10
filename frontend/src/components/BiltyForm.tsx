@@ -39,6 +39,7 @@ const BiltyForm: React.FC = () => {
   const [isPreparing, setIsPreparing] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedBilty, setHasSavedBilty] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [deadlineAt, setDeadlineAt] = useState<string | null>(
     user?.biltyAccessExpiresAt || null
   );
@@ -53,6 +54,11 @@ const BiltyForm: React.FC = () => {
   useEffect(() => {
     setDeadlineAt(user?.biltyAccessExpiresAt || null);
   }, [user?.biltyAccessExpiresAt]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) {
@@ -230,6 +236,8 @@ const BiltyForm: React.FC = () => {
     }
   };
 
+  const isLocked = Boolean(deadlineAt && new Date(deadlineAt).getTime() <= now);
+
   return (
     <form onSubmit={handleSubmit} className="mt-4 w-full overflow-x-auto pb-8">
       <div className="mx-auto min-w-[900px] max-w-[1100px] px-2">
@@ -241,8 +249,8 @@ const BiltyForm: React.FC = () => {
                 ? "Preparing bilty workspace..."
                 : `Reserved bilty no: ${formData.biltyNumber || "—"}`}
             </p>
-            {deadlineAt ? (
-              <p className="mt-1 text-sm font-medium text-amber-700">
+            {deadlineAt && !isLocked ? (
+              <p className="mt-1 text-sm font-medium text-accent-700">
                 Save before {formatDeadlineTime(deadlineAt)} today.
               </p>
             ) : null}
@@ -258,21 +266,29 @@ const BiltyForm: React.FC = () => {
             />
             <button
               type="submit"
-              disabled={isPreparing || isSaving}
-              className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400"
+              disabled={isPreparing || isSaving || isLocked}
+              className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-200 disabled:cursor-not-allowed disabled:bg-brand-400"
             >
-              {isSaving ? "Saving..." : "Save Bilty"}
+              {isSaving ? "Saving..." : isLocked ? "Expired" : "Save Bilty"}
             </button>
           </div>
         </div>
 
+        {isLocked ? (
+          <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
+            This bilty's deadline has passed, so it is now read-only.{" "}
+            {hasSavedBilty
+              ? "You can still download or print the saved copy below."
+              : "It was never saved, so start a new bilty to continue."}
+          </div>
+        ) : null}
         {statusMessage ? (
-          <div className="no-print mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 shadow-sm">
+          <div className="no-print mb-4 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700 shadow-sm">
             {statusMessage}
           </div>
         ) : null}
         {errorMessage ? (
-          <div className="no-print mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 shadow-sm">
+          <div className="no-print mb-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600 shadow-sm">
             {errorMessage}
           </div>
         ) : null}
@@ -281,7 +297,7 @@ const BiltyForm: React.FC = () => {
           <div className="print-page print-bilty-page">
             <BiltyDocument
               formData={formData}
-              onChange={handleChange}
+              onChange={isLocked ? undefined : handleChange}
               freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
             />
           </div>
@@ -289,7 +305,7 @@ const BiltyForm: React.FC = () => {
             <div className="print-page print-bilty-page print-only-copy">
               <BiltyDocument
                 formData={formData}
-                onChange={handleChange}
+                onChange={isLocked ? undefined : handleChange}
                 freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
                 basisCopy
               />

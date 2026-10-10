@@ -39,12 +39,12 @@ const CreateAdminPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,white_45%,#fffbeb_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
           <section className="card p-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">
+            <p className="inline-flex rounded-pill bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700">
               Super Admin Only
             </p>
             <h1 className="mt-3 text-3xl font-bold text-slate-900">Create a new admin account</h1>
@@ -53,7 +53,7 @@ const CreateAdminPage: React.FC = () => {
             </p>
 
             <div className="mt-6 space-y-4">
-              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="font-semibold text-slate-900">What this admin will be able to do</p>
                 <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
                   <li>• View all users</li>
@@ -61,7 +61,7 @@ const CreateAdminPage: React.FC = () => {
                   <li>• Manage bilty operations</li>
                 </ul>
               </div>
-              <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-800">
+              <div className="rounded-card border border-accent-200 bg-accent-50 p-5 text-sm leading-6 text-accent-800">
                 Admins cannot create other admins and cannot disable users.
               </div>
             </div>
@@ -74,12 +74,12 @@ const CreateAdminPage: React.FC = () => {
             </p>
 
             {error ? (
-              <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              <p className="mt-5 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
                 {error}
               </p>
             ) : null}
             {success ? (
-              <p className="mt-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              <p className="mt-5 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
                 {success}
               </p>
             ) : null}
@@ -120,7 +120,7 @@ const CreateAdminPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-6 rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-300"
+              className="mt-6 rounded-2xl bg-accent-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-accent-200 transition hover:bg-accent-700 disabled:cursor-not-allowed disabled:bg-accent-300"
             >
               {isSubmitting ? "Creating admin..." : "Create Admin"}
             </button>

@@ -38,7 +38,7 @@ const SignupPage: React.FC = () => {
     >
       <form onSubmit={handleSubmit} className="card p-8">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-600">
+          <p className="inline-flex rounded-pill bg-success-50 px-3 py-1 text-xs font-semibold text-success-700">
             User Registration
           </p>
           <h2 className="mt-3 text-3xl font-bold text-slate-900">Sign up to get started</h2>
@@ -48,12 +48,12 @@ const SignupPage: React.FC = () => {
         </div>
 
         {error ? (
-          <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <p className="mt-6 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
             {error}
           </p>
         ) : null}
         {success ? (
-          <p className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <p className="mt-6 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
             {success}
           </p>
         ) : null}
@@ -94,14 +94,14 @@ const SignupPage: React.FC = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-6 w-full rounded-2xl bg-emerald-600 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+          className="mt-6 w-full rounded-2xl bg-success-600 py-3 text-sm font-semibold text-white shadow-lg shadow-success-100 transition hover:bg-success-700 disabled:cursor-not-allowed disabled:bg-success-100"
         >
           {isSubmitting ? "Creating account..." : "Create Account"}
         </button>
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?{" "}
-          <Link to="/login" className="font-semibold text-blue-600 hover:underline">
+          <Link to="/login" className="font-semibold text-brand-600 hover:underline">
             Login here
           </Link>
         </p>

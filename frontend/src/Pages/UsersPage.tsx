@@ -53,13 +53,13 @@ const UsersPage: React.FC = () => {
   }, [users]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#ede9fe,white_45%,#eef2ff_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-7xl px-4 py-8">
         <section className="card p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-violet-600">
+              <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
                 User Management
               </p>
               <h1 className="mt-3 text-3xl font-bold text-slate-900">All users</h1>
@@ -67,7 +67,7 @@ const UsersPage: React.FC = () => {
                 Admins and super admins can view all users. Only super admin can disable normal users.
               </p>
             </div>
-            <div className="rounded-2xl bg-violet-50 px-4 py-3 text-sm text-violet-700">
+            <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-700">
               Logged in as <span className="font-semibold capitalize">{user?.role}</span>
             </div>
           </div>
@@ -79,7 +79,7 @@ const UsersPage: React.FC = () => {
               { label: "Disabled", value: stats.disabled },
               { label: "Admins", value: stats.admins },
             ].map((item) => (
-              <div key={item.label} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={item.label} className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
                   {item.label}
                 </p>
@@ -91,12 +91,12 @@ const UsersPage: React.FC = () => {
 
         <section className="card mt-8 p-6">
           {actionMessage ? (
-            <p className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <p className="mb-4 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
               {actionMessage}
             </p>
           ) : null}
           {error ? (
-            <p className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <p className="mb-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
               {error}
             </p>
           ) : null}
@@ -104,7 +104,7 @@ const UsersPage: React.FC = () => {
           {loading ? (
             <p className="text-slate-500">Loading users...</p>
           ) : (
-            <div className="overflow-x-auto rounded-[24px] border border-slate-200">
+            <div className="overflow-x-auto rounded-card border border-slate-200">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
@@ -136,8 +136,8 @@ const UsersPage: React.FC = () => {
                           <span
                             className={`rounded-full px-3 py-1 text-xs font-semibold ${
                               item.isActive
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
+                                ? "bg-success-100 text-success-700"
+                                : "bg-danger-100 text-danger-700"
                             }`}
                           >
                             {item.isActive ? "Active" : "Disabled"}
@@ -147,7 +147,7 @@ const UsersPage: React.FC = () => {
                           {canDisable ? (
                             <button
                               onClick={() => handleDisable(id)}
-                              className="rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-red-700"
+                              className="rounded-full bg-danger-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-700"
                             >
                               Disable User
                             </button>

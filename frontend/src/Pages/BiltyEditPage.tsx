@@ -84,12 +84,12 @@ const BiltyEditPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,white_45%,#fffbeb_100%)]">
+    <div className="page-shell">
       <Navbar />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="card no-print mb-6 flex flex-wrap items-center justify-between gap-4 p-6">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">
+            <p className="inline-flex rounded-pill bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700">
               Superadmin Bilty Edit
             </p>
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
@@ -109,8 +109,8 @@ const BiltyEditPage: React.FC = () => {
         </div>
 
         {loading ? <p className="no-print text-slate-500">Loading bilty...</p> : null}
-        {error ? <p className="no-print mb-4 text-red-600">{error}</p> : null}
-        {message ? <p className="no-print mb-4 text-green-700">{message}</p> : null}
+        {error ? <p className="no-print mb-4 text-danger-600">{error}</p> : null}
+        {message ? <p className="no-print mb-4 text-success-700">{message}</p> : null}
 
         {!loading && !error ? (
           <form onSubmit={handleSubmit}>
@@ -118,7 +118,7 @@ const BiltyEditPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="rounded-2xl bg-accent-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Bilty Changes"}
               </button>

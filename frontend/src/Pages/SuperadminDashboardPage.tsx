@@ -171,11 +171,11 @@ const SuperadminDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,white_45%,#fffbeb_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-7xl px-4 py-8">
         <section className="card p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-amber-600">
+          <p className="inline-flex rounded-pill bg-accent-50 px-3 py-1 text-xs font-semibold text-accent-700">
             Super Admin Dashboard
           </p>
           <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
@@ -188,19 +188,19 @@ const SuperadminDashboardPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowForm((value) => !value)}
-              className="rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-200 transition hover:bg-amber-700"
+              className="rounded-2xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-accent-200 transition hover:bg-accent-700"
             >
               + New Range
             </button>
           </div>
 
           {error ? (
-            <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <p className="mt-5 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
               {error}
             </p>
           ) : null}
           {actionMessage ? (
-            <p className="mt-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            <p className="mt-5 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
               {actionMessage}
             </p>
           ) : null}
@@ -212,7 +212,7 @@ const SuperadminDashboardPage: React.FC = () => {
               ["Active Ranges", stats.activeRanges],
               ["Exhausted Ranges", stats.exhaustedRanges],
             ].map(([title, value]) => (
-              <div key={title} className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={title} className="rounded-card border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{title}</p>
                 <p className="mt-3 text-3xl font-bold text-slate-900">{value}</p>
               </div>
@@ -245,7 +245,7 @@ const SuperadminDashboardPage: React.FC = () => {
               <input className="input" type="number" min="1000" placeholder="Range end" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} required />
             </div>
             <div className="mt-5 flex gap-3">
-              <button type="submit" disabled={isSaving} className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="submit" disabled={isSaving} className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
                 {isSaving ? "Saving..." : editingRangeId ? "Save Changes" : "Create Range"}
               </button>
               <button type="button" onClick={resetForm} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">
@@ -258,7 +258,7 @@ const SuperadminDashboardPage: React.FC = () => {
         <section className="card mt-8 p-6">
           <h2 className="text-2xl font-bold text-slate-900">Number Ranges</h2>
           {loading ? <p className="mt-5 text-slate-500">Loading ranges...</p> : (
-            <div className="mt-5 overflow-x-auto rounded-[24px] border border-slate-200">
+            <div className="mt-5 overflow-x-auto rounded-card border border-slate-200">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
@@ -274,19 +274,19 @@ const SuperadminDashboardPage: React.FC = () => {
                       <td className="px-5 py-4">{range.rangeStart}–{range.rangeEnd}</td>
                       <td className="px-5 py-4">{range.nextNumber}</td>
                       <td className="px-5 py-4">{range.remaining}</td>
-                      <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${range.isExhausted ? "bg-slate-100 text-slate-600" : range.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{range.isExhausted ? "Exhausted" : range.isActive ? "Active" : "Inactive"}</span></td>
+                      <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${range.isExhausted ? "bg-slate-100 text-slate-600" : range.isActive ? "bg-success-100 text-success-700" : "bg-danger-100 text-danger-700"}`}>{range.isExhausted ? "Exhausted" : range.isActive ? "Active" : "Inactive"}</span></td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => handleEdit(range)} className="rounded-full bg-amber-500 px-3 py-2 text-xs font-semibold text-white">
+                          <button type="button" onClick={() => handleEdit(range)} className="rounded-full bg-accent-500 px-3 py-2 text-xs font-semibold text-white">
                             Edit
                           </button>
                           {range.isActive ? (
-                            <button type="button" onClick={() => void handleDeactivate(range)} className="rounded-full bg-red-600 px-3 py-2 text-xs font-semibold text-white">
+                            <button type="button" onClick={() => void handleDeactivate(range)} className="rounded-full bg-danger-600 px-3 py-2 text-xs font-semibold text-white">
                               Deactivate
                             </button>
                           ) : null}
                           {range.nextNumber === range.rangeStart ? (
-                            <button type="button" onClick={() => void handleDelete(range)} className="rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-600">
+                            <button type="button" onClick={() => void handleDelete(range)} className="rounded-full border border-danger-100 px-3 py-2 text-xs font-semibold text-danger-600">
                               Delete
                             </button>
                           ) : null}

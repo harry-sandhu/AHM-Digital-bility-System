@@ -28,7 +28,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
       : "draft");
 
   return (
-    <div className="rounded-[24px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
+    <div className="rounded-card border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
@@ -49,8 +49,8 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
           <span
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
               status === "expired"
-                ? "bg-rose-100 text-rose-700"
-                : "bg-emerald-100 text-emerald-700"
+                ? "bg-danger-100 text-danger-700"
+                : "bg-success-100 text-success-700"
             }`}
           >
             {status === "expired" ? "Expired" : "Active"}
@@ -64,14 +64,14 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
               <button
                 type="button"
                 onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
-                className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700"
+                className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-semibold text-accent-700"
               >
                 Edit Bilty
               </button>
               <button
                 type="button"
                 onClick={() => onDelete?.(bilty)}
-                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"
+                className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700"
               >
                 Delete Bilty
               </button>
@@ -212,7 +212,7 @@ const BiltyList: React.FC = () => {
     <div className="card p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">
+          <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
             Bilty Records
           </p>
           <h2 className="mt-2 text-2xl font-bold text-slate-900">
@@ -228,7 +228,7 @@ const BiltyList: React.FC = () => {
       </div>
 
       {role === "superadmin" ? (
-        <div className="mb-5 grid gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 p-4 md:grid-cols-[1.5fr_0.75fr_0.9fr]">
+        <div className="mb-5 grid gap-3 rounded-2xl border border-accent-100 bg-accent-50/60 p-4 md:grid-cols-[1.5fr_0.75fr_0.9fr]">
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -251,7 +251,7 @@ const BiltyList: React.FC = () => {
       ) : null}
 
       {loading ? <p className="text-slate-500">Loading bilties...</p> : null}
-      {error ? <p className="text-red-600">{error}</p> : null}
+      {error ? <p className="text-danger-600">{error}</p> : null}
 
       {!loading && !error && visibleBilties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-slate-500">

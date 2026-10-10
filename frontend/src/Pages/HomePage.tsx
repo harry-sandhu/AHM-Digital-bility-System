@@ -60,13 +60,13 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe,white_45%,#e2e8f0_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-7xl px-4 py-8">
         <section className="card overflow-hidden p-6 md:p-8">
           <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
             <div>
-              <p className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">
+              <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
                 Dashboard
               </p>
               <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
@@ -80,7 +80,7 @@ const HomePage: React.FC = () => {
                 {user?.role === "user" &&
                   "Create your bilty after accepting the terms & conditions, complete payment, save it digitally, and download the final 2-page PDF or PNG copy anytime."}
               </p>
-              <div className="mt-6 rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4 text-sm leading-6 text-blue-800">
+              <div className="mt-6 rounded-card border border-brand-100 bg-brand-50 px-5 py-4 text-sm leading-6 text-brand-800">
                 {hasActivePayment ? (
                   <span>
                     Bilty access is active for ₹{paymentAmount}. Please fill and save the bilty before{" "}
@@ -95,7 +95,7 @@ const HomePage: React.FC = () => {
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   onClick={handleStartBiltyFlow}
-                  className="rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+                  className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700"
                 >
                   {hasActivePayment ? "Continue Bilty Flow" : "Start New Bilty"}
                 </button>
@@ -114,7 +114,7 @@ const HomePage: React.FC = () => {
               {cards.map((card) => (
                 <div
                   key={card.title}
-                  className="rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm"
+                  className="rounded-card border border-slate-200 bg-white/90 p-5 shadow-sm"
                 >
                   <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
                     {card.title}

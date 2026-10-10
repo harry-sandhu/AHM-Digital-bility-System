@@ -25,13 +25,13 @@ const BiltyPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe,white_45%,#e2e8f0_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="card no-print mb-6 p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">
+              <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
                 Bilty Workspace
               </p>
               <h1 className="mt-3 text-3xl font-bold text-slate-900">Create and save your bilty</h1>

@@ -18,12 +18,12 @@ const BiltyTermsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe,white_45%,#e0f2fe_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="card p-6">
-            <p className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">
+            <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
               Bilty Consent Step
             </p>
             <h1 className="mt-4 text-3xl font-bold text-slate-900">
@@ -47,7 +47,7 @@ const BiltyTermsPage: React.FC = () => {
                 type="checkbox"
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-brand-600"
               />
               <span>
                 I have read and agree to the bilty terms & conditions, and I understand that they will be attached to the generated bilty.
@@ -57,7 +57,7 @@ const BiltyTermsPage: React.FC = () => {
             <button
               onClick={handleContinue}
               disabled={!accepted}
-              className="mt-6 w-full rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              className="mt-6 w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-300"
             >
               Agree & Continue to Bilty
             </button>

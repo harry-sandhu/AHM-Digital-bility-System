@@ -62,12 +62,12 @@ const BiltyPaymentPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,#dbeafe,white_45%,#e0f2fe_100%)]">
+    <div className="page-shell">
       <Navbar />
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="card p-6">
-            <p className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-blue-700">
+            <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
               Bilty Payment Step
             </p>
             <h1 className="mt-4 text-3xl font-bold text-slate-900">
@@ -80,7 +80,7 @@ const BiltyPaymentPage: React.FC = () => {
 
           <div className="card p-6">
             <h2 className="text-xl font-semibold text-slate-900">Payment summary</h2>
-            <div className="mt-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mt-4 rounded-card border border-slate-200 bg-white p-5 shadow-sm">
               <label className="text-sm font-semibold text-slate-700" htmlFor="freight-amount">
                 Freight amount
               </label>
@@ -92,7 +92,7 @@ const BiltyPaymentPage: React.FC = () => {
                 value={freightAmount}
                 onChange={(event) => setFreightAmount(event.target.value)}
                 placeholder="Enter freight amount"
-                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-slate-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
               />
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
                 Bilty charge
@@ -101,13 +101,13 @@ const BiltyPaymentPage: React.FC = () => {
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 This payment unlocks bilty generation for today.
               </p>
-              <p className="mt-3 text-sm font-medium text-amber-700">
+              <p className="mt-3 text-sm font-medium text-accent-700">
                 Deadline: {formatDeadline(user?.biltyAccessExpiresAt)}
               </p>
             </div>
 
             {error ? (
-              <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              <p className="mt-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
                 {error}
               </p>
             ) : null}
@@ -115,7 +115,7 @@ const BiltyPaymentPage: React.FC = () => {
             <button
               onClick={handleContinue}
               disabled={isSubmitting}
-              className="mt-6 w-full rounded-2xl bg-blue-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+              className="mt-6 w-full rounded-2xl bg-brand-600 px-4 py-3 font-semibold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-300"
             >
               {isSubmitting
                 ? "Activating payment..."

@@ -13,7 +13,7 @@ const TermsDocument: React.FC<TermsDocumentProps> = ({
 }) => {
   return (
     <section
-      className={`rounded-[28px] border border-slate-200 bg-white ${
+      className={`rounded-card border border-slate-200 bg-white ${
         printable ? "p-10 shadow-none" : "p-6 shadow-xl shadow-slate-200/70"
       } ${className}`}
     >

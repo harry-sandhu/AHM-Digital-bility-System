@@ -40,7 +40,7 @@ const LoginPage: React.FC = () => {
     >
       <form onSubmit={handleSubmit} className="card p-8">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">
+          <p className="inline-flex rounded-pill bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
             Secure Login
           </p>
           <h2 className="mt-3 text-3xl font-bold text-slate-900">Access your dashboard</h2>
@@ -50,7 +50,7 @@ const LoginPage: React.FC = () => {
         </div>
 
         {error ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          <div className="mt-6 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
             {error}
           </div>
         ) : null}
@@ -88,14 +88,14 @@ const LoginPage: React.FC = () => {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-6 w-full rounded-2xl bg-blue-600 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+          className="mt-6 w-full rounded-2xl bg-brand-600 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-brand-300"
         >
           {isSubmitting ? "Logging in..." : "Login"}
         </button>
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Don&apos;t have an account?{" "}
-          <Link to="/signup" className="font-semibold text-blue-600 hover:underline">
+          <Link to="/signup" className="font-semibold text-brand-600 hover:underline">
             Create a user account
           </Link>
         </p>

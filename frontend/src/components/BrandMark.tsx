@@ -14,7 +14,7 @@ const BrandMark: React.FC<BrandMarkProps> = ({ compact = false, dark = false }) 
         className={compact ? "h-11 w-11 rounded-xl object-contain bg-white p-1 shadow-sm" : "h-16 w-16 rounded-2xl bg-white p-2 shadow-lg"}
       />
       <div>
-        <p className={`font-bold tracking-wide ${compact ? "text-base" : "text-2xl"} ${dark ? "text-slate-900" : "text-white"}`}>
+        <p className={`font-display font-semibold tracking-wide ${compact ? "text-base" : "text-2xl"} ${dark ? "text-brand-900" : "text-white"}`}>
           AHM Bilty System
         </p>
         <p className={`${compact ? "text-xs" : "text-sm"} ${dark ? "text-slate-500" : "text-white/80"}`}>

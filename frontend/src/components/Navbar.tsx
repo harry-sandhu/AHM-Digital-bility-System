@@ -40,14 +40,14 @@ const Navbar: React.FC = () => {
           </button>
           <button
             onClick={handleStartBiltyFlow}
-            className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+            className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-200 transition hover:bg-brand-700"
           >
             Create Bilty
           </button>
           {(user?.role === "admin" || user?.role === "superadmin") && (
             <button
               onClick={() => navigate("/users")}
-              className="rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 transition hover:bg-violet-100"
+              className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
             >
               Users
             </button>
@@ -56,13 +56,13 @@ const Navbar: React.FC = () => {
             <>
               <button
                 onClick={() => navigate("/admins/new")}
-                className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+                className="rounded-full border border-accent-200 bg-accent-50 px-4 py-2 text-sm font-medium text-accent-700 transition hover:bg-accent-100"
               >
                 Create Admin
               </button>
               <button
                 onClick={() => navigate("/superadmin")}
-                className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100"
+                className="rounded-full border border-accent-200 bg-accent-50 px-4 py-2 text-sm font-medium text-accent-700 transition hover:bg-accent-100"
               >
                 Number Ranges
               </button>
@@ -70,7 +70,7 @@ const Navbar: React.FC = () => {
           )}
           <button
             onClick={handleLogout}
-            className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+            className="rounded-full border border-danger-100 bg-danger-50 px-4 py-2 text-sm font-medium text-danger-700 transition hover:bg-danger-100"
           >
             Logout
           </button>
