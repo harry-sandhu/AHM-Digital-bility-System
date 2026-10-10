@@ -64,10 +64,7 @@ const register = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     }
     catch (error) {
         console.error("❌ REGISTRATION ERROR:", error);
-        res.status(500).json({
-            error: "Registration failed",
-            details: error instanceof Error ? error.message : error,
-        });
+        res.status(500).json({ error: "Registration failed" });
     }
 });
 exports.register = register;

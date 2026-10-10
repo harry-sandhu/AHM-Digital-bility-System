@@ -14,6 +14,66 @@ import { getBiltyAccessAmount } from "../utils/biltyPricing";
 const canManageAllBilties = (role?: string) =>
   role === "superadmin";
 
+const BILTY_FORM_FIELDS = [
+  "lorryNo",
+  "invoiceNoDate",
+  "invoiceDate",
+  "deliveryAddress",
+  "phoneNo",
+  "insuranceCompany",
+  "insurancePolicyNo",
+  "insuranceDate",
+  "insuranceCertNo",
+  "insuranceAmount",
+  "biltyNumber",
+  "gstPaidBy",
+  "basisOfBooking",
+  "consignorAddress",
+  "consignorGstin",
+  "consigneeAddress",
+  "consigneeGstin",
+  "consignmentNo",
+  "biltyDate",
+  "from",
+  "to",
+  "packages",
+  "methodOfPacking",
+  "description",
+  "actualWt",
+  "chargedWt",
+  "rate",
+  "amount",
+  "freight",
+  "labour",
+  "gstCharges",
+  "biltyCharges",
+  "kanta",
+  "grandTotal",
+  "advance",
+  "balanceAmt",
+  "declaredValue",
+  "driver",
+  "remarks",
+  "bookingClerk",
+] as const;
+
+const pickBiltyFormFields = (source: unknown): Record<string, unknown> => {
+  if (!source || typeof source !== "object") {
+    return {};
+  }
+
+  const input = source as Record<string, unknown>;
+  const picked: Record<string, unknown> = {};
+
+  for (const field of BILTY_FORM_FIELDS) {
+    if (field in input) {
+      picked[field] = input[field];
+    }
+  }
+
+  return picked;
+};
+
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 
 const parseAmount = (value: unknown) => {
@@ -227,7 +287,7 @@ export const updateBilty = async (req: AuthRequest, res: Response) => {
 
     const isOwner = String(bilty.createdBy) === String(req.user._id);
     const nextFormData: Record<string, unknown> = {
-      ...(formData && typeof formData === "object" ? formData : {}),
+      ...pickBiltyFormFields(formData),
       consignmentNo: String(bilty.consignmentNo ?? ""),
       gstPaidBy:
         typeof formData?.gstPaidBy === "string" && formData.gstPaidBy

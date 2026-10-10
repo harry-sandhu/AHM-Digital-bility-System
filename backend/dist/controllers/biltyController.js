@@ -20,6 +20,61 @@ const User_1 = __importDefault(require("../models/User"));
 const numberRange_1 = require("../utils/numberRange");
 const biltyPricing_1 = require("../utils/biltyPricing");
 const canManageAllBilties = (role) => role === "superadmin";
+const BILTY_FORM_FIELDS = [
+    "lorryNo",
+    "invoiceNoDate",
+    "invoiceDate",
+    "deliveryAddress",
+    "phoneNo",
+    "insuranceCompany",
+    "insurancePolicyNo",
+    "insuranceDate",
+    "insuranceCertNo",
+    "insuranceAmount",
+    "biltyNumber",
+    "gstPaidBy",
+    "basisOfBooking",
+    "consignorAddress",
+    "consignorGstin",
+    "consigneeAddress",
+    "consigneeGstin",
+    "consignmentNo",
+    "biltyDate",
+    "from",
+    "to",
+    "packages",
+    "methodOfPacking",
+    "description",
+    "actualWt",
+    "chargedWt",
+    "rate",
+    "amount",
+    "freight",
+    "labour",
+    "gstCharges",
+    "biltyCharges",
+    "kanta",
+    "grandTotal",
+    "advance",
+    "balanceAmt",
+    "declaredValue",
+    "driver",
+    "remarks",
+    "bookingClerk",
+];
+const pickBiltyFormFields = (source) => {
+    if (!source || typeof source !== "object") {
+        return {};
+    }
+    const input = source;
+    const picked = {};
+    for (const field of BILTY_FORM_FIELDS) {
+        if (field in input) {
+            picked[field] = input[field];
+        }
+    }
+    return picked;
+};
 const DEFAULT_BILTY_ACCESS_AMOUNT = 200;
 const parseAmount = (value) => {
     const parsed = Number(String(value !== null && value !== void 0 ? value : "").replace(/,/g, ""));
@@ -179,7 +234,7 @@ const updateBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
             });
         }
         const isOwner = String(bilty.createdBy) === String(req.user._id);
-        const nextFormData = Object.assign(Object.assign({}, (formData && typeof formData === "object" ? formData : {})), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : ""), gstPaidBy: typeof (formData === null || formData === void 0 ? void 0 : formData.gstPaidBy) === "string" && formData.gstPaidBy
+        const nextFormData = Object.assign(Object.assign({}, pickBiltyFormFields(formData)), { consignmentNo: String((_a = bilty.consignmentNo) !== null && _a !== void 0 ? _a : ""), gstPaidBy: typeof (formData === null || formData === void 0 ? void 0 : formData.gstPaidBy) === "string" && formData.gstPaidBy
                 ? formData.gstPaidBy
                 : "Consignor", basisOfBooking: typeof (formData === null || formData === void 0 ? void 0 : formData.basisOfBooking) === "string" && formData.basisOfBooking
                 ? formData.basisOfBooking
