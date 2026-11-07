@@ -2,7 +2,7 @@
 # though unused until Module 5's bill-scan feature lands, so any Render/Docker
 # build problem with them surfaces immediately rather than after five modules
 # of business logic are already written.
-FROM rust:1.82-slim-bookworm AS builder
+FROM rust:1.89-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
@@ -35,11 +35,18 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 
+# Runtime-only shared-lib package names for tesseract/leptonica have shifted
+# across Debian point releases (e.g. libtesseract5/libleptonica6 disappearing
+# or getting renamed). Installing the same -dev packages the builder stage
+# already uses pulls in their runtime .so dependencies under whatever name
+# is actually current, at the cost of some unused headers/static libs — more
+# image weight, but it can't go stale the way a guessed exact package name
+# can.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     tesseract-ocr \
-    libtesseract5 \
-    libleptonica6 \
+    libtesseract-dev \
+    libleptonica-dev \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --no-create-home --shell /usr/sbin/nologin appuser
