@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
-import { clearBiltyDraft } from "../utils/biltyDraft";
+import { clearBiltyDraft, readBiltyDraft } from "../utils/biltyDraft";
 import BrandMark from "./BrandMark";
 
 const Navbar: React.FC = () => {
@@ -15,6 +15,20 @@ const Navbar: React.FC = () => {
   };
 
   const handleStartBiltyFlow = () => {
+    const existingDraft = readBiltyDraft(user?.id);
+
+    if (existingDraft) {
+      const confirmed = window.confirm(
+        existingDraft.hasSavedBilty
+          ? "You have a saved bilty in progress. Starting a new one will leave it behind and reset your current draft. Continue?"
+          : "You have an unsaved bilty in progress. Starting a new one will permanently discard it. Continue?"
+      );
+
+      if (!confirmed) {
+        return;
+      }
+    }
+
     sessionStorage.removeItem(BILTY_TERMS_ACCEPTED_KEY);
     clearBiltyDraft(user?.id);
     navigate("/bilty/terms");

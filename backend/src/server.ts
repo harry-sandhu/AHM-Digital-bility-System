@@ -14,15 +14,22 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigin = process.env.FRONTEND_URL;
+const allowedOrigins = (process.env.FRONTEND_URL || "https://ahm-digital-bility-system.vercel.app")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
-  cors(
-    allowedOrigin
-      ? { origin: allowedOrigin }
-      : process.env.NODE_ENV === "production"
-        ? { origin: false }
-        : undefined
-  )
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (health checks, curl, server-to-server calls).
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Origin is not allowed by CORS"));
+    },
+  })
 );
 app.use(express.json());
 
@@ -42,9 +49,18 @@ const paymentLimiter = rateLimit({
   message: { error: "Too many requests. Please try again later." },
 });
 
+const billExtractionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many bill uploads. Please try again later." },
+});
+
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/bilty/pay", paymentLimiter);
+app.use("/api/bilty/extract-bill", billExtractionLimiter);
 
 app.get("/", (_req, res) => {
   res.send("server running ok");
@@ -64,14 +80,32 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bilty";
 
-mongoose
-  .connect(MONGO_URI)
-  .then(async () => {
-    console.log("✅ MongoDB Connected");
-    await seedSuperAdmin();
-    app.listen(PORT, () => console.log(`✅ Server running on PORT ${PORT}`));
-  })
-  .catch((err: unknown) => {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
-  });
+let databasePromise: Promise<typeof mongoose> | undefined;
+
+export const connectDatabase = async () => {
+  if (mongoose.connection.readyState === 1) return mongoose;
+
+  databasePromise ??= mongoose
+    .connect(MONGO_URI)
+    .then(async (connection) => {
+      console.log("✅ MongoDB Connected");
+      await seedSuperAdmin();
+      return connection;
+    })
+    .catch((err: unknown) => {
+      databasePromise = undefined;
+      console.error("❌ MongoDB connection error:", err);
+      throw err;
+    });
+
+  return databasePromise;
+};
+
+// Local development/startup entrypoint. Vercel imports `app` and connects per request.
+if (require.main === module) {
+  connectDatabase()
+    .then(() => app.listen(PORT, () => console.log(`✅ Server running on PORT ${PORT}`)))
+    .catch(() => process.exit(1));
+}
+
+export default app;

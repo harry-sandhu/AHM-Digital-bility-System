@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { createBilty, requestBiltyNumber } from "../api/biltyApi";
+import React, { useEffect, useRef, useState } from "react";
+import { createBilty, extractBillData, requestBiltyNumber } from "../api/biltyApi";
 import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons from "./BiltyDownloadButtons";
+import BiltyMobileForm from "./BiltyMobileForm";
 import { useAuth } from "../context/AuthContext";
 import {
   calculateBiltyTotals,
@@ -39,6 +40,8 @@ const BiltyForm: React.FC = () => {
   const [isPreparing, setIsPreparing] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedBilty, setHasSavedBilty] = useState(false);
+  const [isScanningBill, setIsScanningBill] = useState(false);
+  const billFileInputRef = useRef<HTMLInputElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const [deadlineAt, setDeadlineAt] = useState<string | null>(
     user?.biltyAccessExpiresAt || null
@@ -196,6 +199,59 @@ const BiltyForm: React.FC = () => {
     }
   };
 
+  const handleSelectConsignor = (address: string, gstin: string) => {
+    setFormData((prev) =>
+      calculateBiltyTotals({ ...prev, consignorAddress: address, consignorGstin: gstin })
+    );
+  };
+
+  const handleSelectConsignee = (address: string, gstin: string) => {
+    setFormData((prev) =>
+      calculateBiltyTotals({ ...prev, consigneeAddress: address, consigneeGstin: gstin })
+    );
+  };
+
+  const handleBillUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setIsScanningBill(true);
+    setErrorMessage("");
+    setStatusMessage("Reading the bill... this can take a few seconds.");
+
+    try {
+      const response = await extractBillData(file);
+      const extractedFields = response.data.extractedFields || {};
+      const filledFieldCount = Object.values(extractedFields).filter(Boolean).length;
+
+      setFormData((prev) => {
+        const next = { ...prev };
+
+        for (const [field, value] of Object.entries(extractedFields)) {
+          if (value && !next[field as keyof BiltyFormState]) {
+            next[field as keyof BiltyFormState] = value;
+          }
+        }
+
+        return calculateBiltyTotals(next);
+      });
+
+      setStatusMessage(
+        filledFieldCount
+          ? `${response.data.message} (${filledFieldCount} field${filledFieldCount === 1 ? "" : "s"} filled from the bill.)`
+          : response.data.message
+      );
+    } catch (err: any) {
+      setErrorMessage(err?.response?.data?.error || "Failed to read the uploaded bill");
+    } finally {
+      setIsScanningBill(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
@@ -239,8 +295,8 @@ const BiltyForm: React.FC = () => {
   const isLocked = Boolean(deadlineAt && new Date(deadlineAt).getTime() <= now);
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 w-full overflow-x-auto pb-8">
-      <div className="mx-auto min-w-[900px] max-w-[1100px] px-2">
+    <form onSubmit={handleSubmit} className="mt-4 w-full pb-8">
+      <div className="mx-auto max-w-[1100px] px-2 sm:px-4">
         <div className="card no-print mb-4 flex flex-wrap items-center justify-between gap-4 p-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Create Bilty</h2>
@@ -260,6 +316,21 @@ const BiltyForm: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-start gap-3">
+            <input
+              ref={billFileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="hidden"
+              onChange={handleBillUpload}
+            />
+            <button
+              type="button"
+              disabled={isPreparing || isLocked || isScanningBill}
+              onClick={() => billFileInputRef.current?.click()}
+              className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isScanningBill ? "Reading bill..." : "Scan Bill to Fill Form"}
+            </button>
             <BiltyDownloadButtons
               disabled={!hasSavedBilty}
               showPrintButton
@@ -273,6 +344,9 @@ const BiltyForm: React.FC = () => {
             </button>
           </div>
         </div>
+        <p className="no-print mb-4 text-xs text-slate-500">
+          Scanning a bill is best-effort text recognition &mdash; always double-check the filled fields before saving.
+        </p>
 
         {isLocked ? (
           <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
@@ -293,12 +367,22 @@ const BiltyForm: React.FC = () => {
           </div>
         ) : null}
 
-        <div className="print-pages">
+        <div className="no-print lg:hidden">
+          <BiltyMobileForm
+            formData={formData}
+            onChange={isLocked ? undefined : handleChange}
+            freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
+          />
+        </div>
+
+        <div className="print-pages mx-auto hidden min-w-[900px] max-w-[1100px] overflow-x-auto lg:block">
           <div className="print-page print-bilty-page">
             <BiltyDocument
               formData={formData}
               onChange={isLocked ? undefined : handleChange}
               freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
+              onSelectConsignor={isLocked ? undefined : handleSelectConsignor}
+              onSelectConsignee={isLocked ? undefined : handleSelectConsignee}
             />
           </div>
           {formData.basisOfBooking !== "To Pay" ? (

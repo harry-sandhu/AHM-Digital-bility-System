@@ -12,6 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.connectDatabase = void 0;
 const express_1 = __importDefault(require("express"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const cors_1 = __importDefault(require("cors"));
@@ -25,12 +26,19 @@ const errorMiddleware_1 = __importDefault(require("./middleware/errorMiddleware"
 const seedSuperAdmin_1 = require("./seeder/seedSuperAdmin");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-const allowedOrigin = process.env.FRONTEND_URL;
-app.use((0, cors_1.default)(allowedOrigin
-    ? { origin: allowedOrigin }
-    : process.env.NODE_ENV === "production"
-        ? { origin: false }
-        : undefined));
+const allowedOrigins = (process.env.FRONTEND_URL || "https://ahm-digital-bility-system.vercel.app")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Allow non-browser requests (health checks, curl, server-to-server calls).
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error("Origin is not allowed by CORS"));
+    },
+}));
 app.use(express_1.default.json());
 const authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
@@ -46,9 +54,17 @@ const paymentLimiter = (0, express_rate_limit_1.default)({
     legacyHeaders: false,
     message: { error: "Too many requests. Please try again later." },
 });
+const billExtractionLimiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many bill uploads. Please try again later." },
+});
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/bilty/pay", paymentLimiter);
+app.use("/api/bilty/extract-bill", billExtractionLimiter);
 app.get("/", (_req, res) => {
     res.send("server running ok");
 });
@@ -62,14 +78,29 @@ app.use("/api/number-ranges", numberRangeRoutes_1.default);
 app.use(errorMiddleware_1.default);
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/bilty";
-mongoose_1.default
-    .connect(MONGO_URI)
-    .then(() => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("✅ MongoDB Connected");
-    yield (0, seedSuperAdmin_1.seedSuperAdmin)();
-    app.listen(PORT, () => console.log(`✅ Server running on PORT ${PORT}`));
-}))
-    .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
+let databasePromise;
+const connectDatabase = () => __awaiter(void 0, void 0, void 0, function* () {
+    if (mongoose_1.default.connection.readyState === 1)
+        return mongoose_1.default;
+    databasePromise !== null && databasePromise !== void 0 ? databasePromise : (databasePromise = mongoose_1.default
+        .connect(MONGO_URI)
+        .then((connection) => __awaiter(void 0, void 0, void 0, function* () {
+        console.log("✅ MongoDB Connected");
+        yield (0, seedSuperAdmin_1.seedSuperAdmin)();
+        return connection;
+    }))
+        .catch((err) => {
+        databasePromise = undefined;
+        console.error("❌ MongoDB connection error:", err);
+        throw err;
+    }));
+    return databasePromise;
 });
+exports.connectDatabase = connectDatabase;
+// Local development/startup entrypoint. Vercel imports `app` and connects per request.
+if (require.main === module) {
+    (0, exports.connectDatabase)()
+        .then(() => app.listen(PORT, () => console.log(`✅ Server running on PORT ${PORT}`)))
+        .catch(() => process.exit(1));
+}
+exports.default = app;

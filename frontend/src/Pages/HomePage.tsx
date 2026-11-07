@@ -4,7 +4,6 @@ import Navbar from "../components/Navbar";
 import BiltyList from "../components/BiltyList";
 import { useAuth } from "../context/AuthContext";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
-import { clearBiltyDraft } from "../utils/biltyDraft";
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -21,7 +20,9 @@ const HomePage: React.FC = () => {
 
   const handleStartBiltyFlow = () => {
     if (!hasAcceptedTerms) {
-      clearBiltyDraft(user?.id);
+      // Terms acceptance lives in sessionStorage and can get evicted (new tab,
+      // backgrounded app, restart) independently of whether a draft exists —
+      // re-accepting terms must never destroy a draft as a side effect.
       navigate("/bilty/terms");
       return;
     }
@@ -110,16 +111,22 @@ const HomePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4">
               {cards.map((card) => (
                 <div
                   key={card.title}
-                  className="rounded-card border border-slate-200 bg-white/90 p-5 shadow-sm"
+                  className="overflow-hidden rounded-card border border-slate-200 bg-white/90 p-5 shadow-sm"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  <p className="truncate text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {card.title}
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-slate-900">{card.value}</p>
+                  <p
+                    className={`mt-2 break-words font-bold text-slate-900 ${
+                      card.value.length > 8 ? "text-lg" : "text-2xl"
+                    }`}
+                  >
+                    {card.value}
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-slate-500">{card.description}</p>
                 </div>
               ))}

@@ -12,13 +12,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteBilty = exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
+exports.deleteBilty = exports.extractBillData = exports.getAllBilty = exports.getBiltyById = exports.getMyBilty = exports.updateBilty = exports.purchaseBiltyAccess = exports.generateBilty = void 0;
+const os_1 = __importDefault(require("os"));
+const tesseract_js_1 = require("tesseract.js");
+const pdf_parse_1 = require("pdf-parse");
 const bilty_1 = __importDefault(require("../models/bilty"));
 const BiltyCounter_1 = __importDefault(require("../models/BiltyCounter"));
 const NumberRange_1 = __importDefault(require("../models/NumberRange"));
 const User_1 = __importDefault(require("../models/User"));
 const numberRange_1 = require("../utils/numberRange");
 const biltyPricing_1 = require("../utils/biltyPricing");
+const billExtraction_1 = require("../utils/billExtraction");
 const canManageAllBilties = (role) => role === "superadmin";
 const BILTY_FORM_FIELDS = [
     "lorryNo",
@@ -317,6 +321,67 @@ const getAllBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     }
 });
 exports.getAllBilty = getAllBilty;
+const MIN_PDF_TEXT_LENGTH = 40;
+const ocrImageBuffer = (buffer) => __awaiter(void 0, void 0, void 0, function* () {
+    // Cache the trained language data outside the project directory so it
+    // doesn't get written into the app's working directory on every boot.
+    const worker = yield (0, tesseract_js_1.createWorker)("eng", undefined, { cachePath: os_1.default.tmpdir() });
+    try {
+        const { data } = yield worker.recognize(buffer);
+        return data.text;
+    }
+    finally {
+        yield worker.terminate();
+    }
+});
+// Digital PDFs have an embedded text layer we can read directly. Scanned PDFs
+// don't, so we fall back to rendering each page to an image and OCR-ing that.
+const extractTextFromPdf = (buffer) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    const parser = new pdf_parse_1.PDFParse({ data: buffer });
+    try {
+        const textResult = yield parser.getText();
+        const text = (_b = (_a = textResult.text) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
+        if (text.length >= MIN_PDF_TEXT_LENGTH) {
+            return text;
+        }
+        const screenshots = yield parser.getScreenshot({ scale: 2 });
+        const pageTexts = [];
+        for (const page of screenshots.pages) {
+            pageTexts.push(yield ocrImageBuffer(page.data));
+        }
+        return pageTexts.join("\n");
+    }
+    finally {
+        yield parser.destroy();
+    }
+});
+const extractBillData = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+    const file = req.file;
+    if (!file) {
+        return res.status(400).json({ error: "No bill file uploaded" });
+    }
+    try {
+        const rawText = file.mimetype === "application/pdf"
+            ? yield extractTextFromPdf(file.buffer)
+            : yield ocrImageBuffer(file.buffer);
+        const extractedFields = (0, billExtraction_1.extractBillFields)(rawText);
+        res.json({
+            message: Object.keys(extractedFields).length
+                ? "Extracted what we could find on the bill. Please review every field before saving."
+                : "Couldn't confidently read any fields from this bill. Please fill the form manually.",
+            extractedFields,
+            rawText,
+        });
+    }
+    catch (_a) {
+        res.status(500).json({ error: "Failed to read the uploaded bill" });
+    }
+});
+exports.extractBillData = extractBillData;
 const deleteBilty = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!req.user || req.user.role !== "superadmin") {
         return res.status(403).json({ error: "Superadmin access required" });

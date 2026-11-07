@@ -1,4 +1,7 @@
 import { Response } from "express";
+import os from "os";
+import { createWorker } from "tesseract.js";
+import { PDFParse } from "pdf-parse";
 import Bilty from "../models/bilty";
 import BiltyCounter from "../models/BiltyCounter";
 import NumberRange from "../models/NumberRange";
@@ -10,6 +13,7 @@ import {
   resetRangeToFirstAvailable,
 } from "../utils/numberRange";
 import { getBiltyAccessAmount } from "../utils/biltyPricing";
+import { extractBillFields } from "../utils/billExtraction";
 
 const canManageAllBilties = (role?: string) =>
   role === "superadmin";
@@ -407,6 +411,78 @@ export const getAllBilty = async (req: AuthRequest, res: Response) => {
     );
   } catch {
     res.status(500).json({ error: "Failed to fetch bilty records" });
+  }
+};
+
+const MIN_PDF_TEXT_LENGTH = 40;
+
+const ocrImageBuffer = async (buffer: Buffer): Promise<string> => {
+  // Cache the trained language data outside the project directory so it
+  // doesn't get written into the app's working directory on every boot.
+  const worker = await createWorker("eng", undefined, { cachePath: os.tmpdir() });
+
+  try {
+    const { data } = await worker.recognize(buffer);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
+};
+
+// Digital PDFs have an embedded text layer we can read directly. Scanned PDFs
+// don't, so we fall back to rendering each page to an image and OCR-ing that.
+const extractTextFromPdf = async (buffer: Buffer): Promise<string> => {
+  const parser = new PDFParse({ data: buffer });
+
+  try {
+    const textResult = await parser.getText();
+    const text = textResult.text?.trim() ?? "";
+
+    if (text.length >= MIN_PDF_TEXT_LENGTH) {
+      return text;
+    }
+
+    const screenshots = await parser.getScreenshot({ scale: 2 });
+    const pageTexts: string[] = [];
+
+    for (const page of screenshots.pages) {
+      pageTexts.push(await ocrImageBuffer(page.data as Buffer));
+    }
+
+    return pageTexts.join("\n");
+  } finally {
+    await parser.destroy();
+  }
+};
+
+export const extractBillData = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  const file = req.file;
+
+  if (!file) {
+    return res.status(400).json({ error: "No bill file uploaded" });
+  }
+
+  try {
+    const rawText =
+      file.mimetype === "application/pdf"
+        ? await extractTextFromPdf(file.buffer)
+        : await ocrImageBuffer(file.buffer);
+
+    const extractedFields = extractBillFields(rawText);
+
+    res.json({
+      message: Object.keys(extractedFields).length
+        ? "Extracted what we could find on the bill. Please review every field before saving."
+        : "Couldn't confidently read any fields from this bill. Please fill the form manually.",
+      extractedFields,
+      rawText,
+    });
+  } catch {
+    res.status(500).json({ error: "Failed to read the uploaded bill" });
   }
 };
 

@@ -7,5 +7,6 @@ export interface UserRecord {
   phone: string;
   role: Role;
   isActive: boolean;
+  groupId?: string;
   createdAt?: string;
 }

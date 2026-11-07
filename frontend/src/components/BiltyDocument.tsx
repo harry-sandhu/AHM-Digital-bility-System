@@ -1,5 +1,6 @@
 import type { CSSProperties, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import type { BiltyFormState } from "../types/biltyForm";
+import SavedContactsPicker from "./SavedContactsPicker";
 
 const pct = (value: number) => `${value * 100}%`;
 
@@ -16,12 +17,30 @@ const normalizeDisplayValue = (value: unknown) => {
     return String(value);
 };
 
-const tieredFontSize = (value: unknown, tiers: Array<[number, string]>): string => {
-    const length = normalizeDisplayValue(value).trim().length;
+const sizeForLength = (length: number, tiers: Array<[number, string]>): string => {
     for (const [maxLen, size] of tiers) {
         if (length <= maxLen) return size;
     }
     return tiers[tiers.length - 1][1];
+};
+
+const tieredFontSize = (value: unknown, tiers: Array<[number, string]>): string =>
+    sizeForLength(normalizeDisplayValue(value).trim().length, tiers);
+
+/**
+ * For a group of fields that sit on the same horizontal line (e.g. Lorry No.
+ * + Phone No., or the Actual Wt./Charged Wt./Rate trio): rather than each
+ * field picking its own size from its own content length, the whole group
+ * shares ONE size, driven by whichever member's content is longest. Short
+ * siblings shrink to match their longest row-mate instead of looking
+ * oversized next to it.
+ */
+const sharedRowFontSize = (values: unknown[], tiers: Array<[number, string]>): string => {
+    const longest = values.reduce<number>(
+        (max, value) => Math.max(max, normalizeDisplayValue(value).trim().length),
+        0
+    );
+    return sizeForLength(longest, tiers);
 };
 
 const DEFAULT_SINGLE_LINE_TIERS: Array<[number, string]> = [
@@ -53,10 +72,10 @@ const GENEROUS_SINGLE_LINE_TIERS: Array<[number, string]> = [
 
 const MULTILINE_TIERS: Record<"narrow" | "compact" | "normal" | "wide", Array<[number, string]>> = {
     narrow: [
-        [4, "1.3em"],
-        [8, "1.2em"],
-        [14, "1.1em"],
-        [24, "1em"],
+        [4, "1.5em"],
+        [8, "1.35em"],
+        [14, "1.2em"],
+        [24, "1.05em"],
     ],
     compact: [
         [6, "1.35em"],
@@ -65,17 +84,17 @@ const MULTILINE_TIERS: Record<"narrow" | "compact" | "normal" | "wide", Array<[n
         [24, "1em"],
     ],
     normal: [
-        [10, "1.5em"],
-        [20, "1.35em"],
-        [40, "1.15em"],
-        [70, "1em"],
-        [120, "0.95em"],
+        [10, "1.7em"],
+        [20, "1.5em"],
+        [40, "1.3em"],
+        [70, "1.1em"],
+        [120, "1em"],
     ],
     wide: [
-        [20, "1.7em"],
-        [45, "1.5em"],
-        [80, "1.3em"],
-        [130, "1.1em"],
+        [20, "2.1em"],
+        [45, "1.8em"],
+        [80, "1.5em"],
+        [130, "1.25em"],
     ],
 };
 
@@ -102,7 +121,7 @@ const PositionedBox: React.FC<PositionedBoxProps> = ({
         style={{ padding: "0.35%", gap: "0.2em", ...style }}
     >
         {label ? (
-            <label className={`block shrink-0 text-[0.85em] leading-tight ${labelClassName || FIELD_LABEL_CLASS}`}>
+            <label className={`block shrink-0 text-[1.6em] leading-tight ${labelClassName || FIELD_LABEL_CLASS}`}>
                 {label}
             </label>
         ) : null}
@@ -152,7 +171,7 @@ const TextInput: React.FC<TextInputProps> = ({
             <input
                 {...props}
                 value={value}
-                className="h-full min-h-0 w-full min-w-0 overflow-hidden border-0 bg-transparent p-0 text-inherit leading-tight outline-none"
+                className="h-full min-h-0 w-full min-w-0 overflow-hidden border-0 bg-transparent p-0 text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
             />
         </div>
     );
@@ -207,7 +226,7 @@ const DateInput: React.FC<
             <input
                 {...props}
                 value={value}
-                className={`w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] pr-[0.2em] text-[1.5em] leading-tight outline-none ${className}`}
+                className={`w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] pr-[0.2em] text-[1.5em] leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0 ${className}`}
                 style={fontSizeStyle}
             />
         </div>
@@ -271,7 +290,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
                     {...props}
                     rows={effectiveRows}
                     value={value}
-                    className="min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none"
+                    className="min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
                 />
             </div>
         );
@@ -285,7 +304,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
             <textarea
                 {...props}
                 value={value}
-                className="h-full min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none"
+                className="h-full min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
             />
         </div>
     );
@@ -299,6 +318,8 @@ type BiltyDocumentProps = {
   className?: string;
     documentRef?: React.Ref<HTMLDivElement>;
     fontSize?: CSSProperties["fontSize"];
+    onSelectConsignor?: (address: string, gstin: string) => void;
+    onSelectConsignee?: (address: string, gstin: string) => void;
 };
 
 const BiltyDocument: React.FC<BiltyDocumentProps> = ({
@@ -308,12 +329,31 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     basisCopy = false,
     className = "",
     documentRef,
-    fontSize = "clamp(10px, 1vw, 13px)",
+    fontSize = "clamp(10px, 1cqw, 13px)",
+    onSelectConsignor,
+    onSelectConsignee,
 }) => {
     const editable = Boolean(onChange);
     const staticRender = !editable;
     const gstPaidByOptions = ["Consignor", "Consignee", "Transporter"] as const;
     const basisOfBookingOptions = ["To Pay", "PAID", "T.B.B"] as const;
+
+    // Every value field renders at one fixed, uniform size instead of
+    // auto-tiering per field/group by content length. Boxes are sized to fit
+    // typical real-world content at this size; extremely long outliers (far
+    // past what the field is meant for) may clip rather than auto-shrink.
+    const UNIFORM_VALUE_SIZE = "18px";
+    const lorryPhoneSize = UNIFORM_VALUE_SIZE;
+    const consignmentInvoiceSize = UNIFORM_VALUE_SIZE;
+    const partyAddressSize = UNIFORM_VALUE_SIZE;
+    const partyGstinSize = UNIFORM_VALUE_SIZE;
+    const actualChargedRateSize = UNIFORM_VALUE_SIZE;
+    const declaredValueDriverSize = UNIFORM_VALUE_SIZE;
+    // Description sits alone in the tallest box in the document (no sibling
+    // row to split height with), so short entries need a much bigger jump
+    // than the shared "wide" tier gives everyone else, or they float lost
+    // in all that vertical room.
+    const descriptionSize = UNIFORM_VALUE_SIZE;
 
     return (
         <div
@@ -324,25 +364,25 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             {/* Header */}
             <div
                 className="absolute right-[2%] rounded-sm border border-black px-[0.5em] py-[0.15em] font-bold uppercase tracking-[0.08em] text-black"
-                style={{ top: pct(0.014), fontSize: "clamp(7px, 0.85vw, 12px)" }}
+                style={{ top: pct(0.014), fontSize: "clamp(7px, 0.85cqw, 12px)" }}
             >
                 {basisCopy ? "Duplicate" : "Original"}
             </div>
             <div
                 className="absolute w-full text-center font-extrabold leading-none text-red-800"
-                style={{ top: pct(0.018), fontSize: "clamp(22px, 2.4vw, 38px)" }}
+                style={{ top: pct(0.018), fontSize: "clamp(22px, 2.4cqw, 38px)" }}
             >
                 AHM TRANSPORT SERVICE
             </div>
             <div
                 className="absolute w-full px-[5%] text-center text-black"
-                style={{ top: pct(0.058), fontSize: "clamp(11px, 1.3vw, 18px)" }}
+                style={{ top: pct(0.058), fontSize: "clamp(11px, 1.3cqw, 18px)" }}
             >
                 Rampur-Bilaspur Road, Vill. &amp; Post Bhot - 244901 (Uttar Pradesh)
             </div>
             <div
                 className="absolute w-full px-[5%] text-center text-black"
-                style={{ top: pct(0.081), fontSize: "clamp(8px, 1vw, 12px)" }}
+                style={{ top: pct(0.081), fontSize: "clamp(8px, 1cqw, 12px)" }}
             >
                 GSTIN: 09CPGPS1323P1ZD | PAN No: CPGPS1323P | Email: ahmtptservice@gmail.com | A/c No: 971000294002004 | I.F.S. Code: UTIB0000795 | Branch: Axis Bank,
                 Rampur
@@ -360,6 +400,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     placeholder="Lorry Number"
                     autoCapitalize="characters"
                     tiers={GENEROUS_SINGLE_LINE_TIERS}
+                    style={{ fontSize: lorryPhoneSize }}
                 />
             </PositionedBox>
 
@@ -379,11 +420,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     placeholder="Phone Number"
                     inputMode="tel"
                     tiers={GENEROUS_SINGLE_LINE_TIERS}
+                    style={{ fontSize: lorryPhoneSize }}
                 />
             </PositionedBox>
 
             {/* Delivery 4:1 Insurance */}
-            <PositionedBox style={boxStyle(0.174, 0.05, 0.58, 0.105)} label="Delivery Address">
+            <PositionedBox style={boxStyle(0.174, 0.05, 0.58, 0.095)} label="Delivery Address">
                 <TextAreaField
                     name="deliveryAddress"
                     density="wide"
@@ -393,11 +435,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     staticRender={staticRender}
                     placeholder="Delivery Address"
                     rows={4}
+                    style={{ fontSize: UNIFORM_VALUE_SIZE }}
                 />
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.174, 0.64, 0.31, 0.105)} label="Insurance" labelClassName={SECTION_LABEL_CLASS}>
-                <div className="grid min-h-0 flex-1 grid-rows-3 gap-[0.16em]">
+            <PositionedBox style={boxStyle(0.174, 0.64, 0.31, 0.095)} label="Insurance" labelClassName={SECTION_LABEL_CLASS}>
+                <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_auto] content-center gap-[0.55em]">
                     <TextInput
                         name="insuranceCompany"
                         value={formData.insuranceCompany}
@@ -405,13 +448,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Company"
-                        tiers={[
-                            [12, "1.6em"],
-                            [18, "1.4em"],
-                            [24, "1.2em"],
-                            [32, "1.05em"],
-                            [45, "0.92em"],
-                        ]}
+                        tiers={GENEROUS_SINGLE_LINE_TIERS}
+                        style={{ fontSize: UNIFORM_VALUE_SIZE }}
                     />
                     <div className="grid min-h-0 grid-cols-2 gap-[0.3em]">
                         <TextInput
@@ -421,7 +459,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="Policy No."
-                            tiers={NARROW_SINGLE_LINE_TIERS}
+                            tiers={DEFAULT_SINGLE_LINE_TIERS}
+                            style={{ fontSize: UNIFORM_VALUE_SIZE }}
                         />
                         <TextInput
                             name="insuranceCertNo"
@@ -430,7 +469,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="DEC/CERT No."
-                            tiers={NARROW_SINGLE_LINE_TIERS}
+                            tiers={DEFAULT_SINGLE_LINE_TIERS}
+                            style={{ fontSize: UNIFORM_VALUE_SIZE }}
                         />
                     </div>
                     <div className="grid min-h-0 grid-cols-2 gap-[0.3em]">
@@ -442,7 +482,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             readOnly={!editable}
                             staticRender={staticRender}
                             compact
-                            style={{ fontSize: "1.3em" }}
+                            style={{ fontSize: UNIFORM_VALUE_SIZE }}
                         />
                         <TextInput
                             name="insuranceAmount"
@@ -452,15 +492,16 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             staticRender={staticRender}
                             placeholder="Amount"
                             align="right"
-                            tiers={NARROW_SINGLE_LINE_TIERS}
+                            tiers={DEFAULT_SINGLE_LINE_TIERS}
                             inputMode="decimal"
+                            style={{ fontSize: UNIFORM_VALUE_SIZE }}
                         />
                     </div>
                 </div>
             </PositionedBox>
 
             {/* Consignment Note */}
-            <PositionedBox style={boxStyle(0.289, 0.05, 0.25, 0.055)} label="Consignment Note No." labelClassName={SECTION_LABEL_CLASS}>
+            <PositionedBox style={boxStyle(0.279, 0.05, 0.20, 0.070)} label="Consignment Note No." labelClassName={SECTION_LABEL_CLASS}>
                 <div className="grid min-h-0 flex-1 grid-cols-[0.75fr_0.65fr] gap-1">
                     <TextInput
                         name="consignmentNo"
@@ -468,7 +509,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         onChange={onChange}
                         readOnly={!editable}
                         staticRender={staticRender}
-                        placeholder="Consignment Note Number"
+                        placeholder="Note No."
+                        style={{ fontSize: consignmentInvoiceSize }}
                     />
                     <DateInput
                         name="biltyDate"
@@ -478,12 +520,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "1.1em" }}
+                        style={{ fontSize: "11.5px" }}
                     />
                 </div>
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.289, 0.30, 0.44, 0.055)} label="Invoice No. & Date" labelClassName={SECTION_LABEL_CLASS}>
+            <PositionedBox style={boxStyle(0.279, 0.25, 0.38, 0.070)} label="Invoice No. & Date" labelClassName={SECTION_LABEL_CLASS}>
                 <div className="grid min-h-0 flex-1 grid-cols-[1fr_0.42fr] gap-1">
                     <TextInput
                         name="invoiceNoDate"
@@ -492,6 +534,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         placeholder="Invoice Number"
+                        style={{ fontSize: consignmentInvoiceSize }}
                     />
                     <DateInput
                         name="invoiceDate"
@@ -501,13 +544,13 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "1.4em" }}
+                        style={{ fontSize: "16px" }}
                     />
                 </div>
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.289, 0.74, 0.21, 0.055)} label="GST Paid By" className="justify-start">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.98em] leading-tight">
+            <PositionedBox style={boxStyle(0.279, 0.63, 0.32, 0.070)} label="GST Paid By" className="justify-start" labelClassName={SECTION_LABEL_CLASS}>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 leading-tight" style={{ fontSize: UNIFORM_VALUE_SIZE }}>
                     {gstPaidByOptions.map(option =>
                         editable ? (
                             <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -534,22 +577,26 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             {/* Consignor / Consignee / vertical From / To */}
             <div
                 className="absolute grid overflow-hidden border border-black bg-white"
-                style={{ ...boxStyle(0.354, 0.05, 0.9, 0.125), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr" }}
+                style={{ ...boxStyle(0.359, 0.05, 0.9, 0.115), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr" }}
             >
-                <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className={`block shrink-0 text-[0.85em] leading-tight ${SECTION_LABEL_CLASS}`}>
+                <div className="relative flex min-w-0 flex-col border-r border-black p-[0.35%]">
+                    {editable && onSelectConsignor ? (
+                        <SavedContactsPicker kind="consignor" onSelect={onSelectConsignor} />
+                    ) : null}
+                    <label className={`block shrink-0 text-[1.6em] leading-tight ${SECTION_LABEL_CLASS}`}>
                         Consignor&apos;s Name &amp; Address
                     </label>
                     <div className="flex min-h-0 flex-1 flex-col justify-center">
                         <TextAreaField
                             name="consignorAddress"
-                            density="normal"
+                            density="wide"
                             centerWhenShort
                             value={formData.consignorAddress}
                             onChange={onChange}
                             readOnly={!editable}
                             staticRender={staticRender}
                             rows={4}
+                            style={{ fontSize: partyAddressSize }}
                         />
                         <TextInput
                             name="consignorGstin"
@@ -559,24 +606,29 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             staticRender={staticRender}
                             placeholder="GSTIN"
                             autoCapitalize="characters"
+                            style={{ fontSize: partyGstinSize }}
                         />
                     </div>
                 </div>
 
-                <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className={`block shrink-0 text-[0.85em] leading-tight ${SECTION_LABEL_CLASS}`}>
+                <div className="relative flex min-w-0 flex-col border-r border-black p-[0.35%]">
+                    {editable && onSelectConsignee ? (
+                        <SavedContactsPicker kind="consignee" onSelect={onSelectConsignee} />
+                    ) : null}
+                    <label className={`block shrink-0 text-[1.6em] leading-tight ${SECTION_LABEL_CLASS}`}>
                         Consignee&apos;s Name &amp; Address
                     </label>
                     <div className="flex min-h-0 flex-1 flex-col justify-center">
                         <TextAreaField
                             name="consigneeAddress"
-                            density="normal"
+                            density="wide"
                             centerWhenShort
                             value={formData.consigneeAddress}
                             onChange={onChange}
                             readOnly={!editable}
                             staticRender={staticRender}
                             rows={4}
+                            style={{ fontSize: partyAddressSize }}
                         />
                         <TextInput
                             name="consigneeGstin"
@@ -586,38 +638,39 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             staticRender={staticRender}
                             placeholder="GSTIN"
                             autoCapitalize="characters"
+                            style={{ fontSize: partyGstinSize }}
                         />
                     </div>
                 </div>
 
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    <label className={`text-center text-[0.85em] leading-tight ${FIELD_LABEL_CLASS}`}>From</label>
-                    <div className="flex min-h-0 flex-1 flex-col justify-center">
+                    <label className={`text-center text-[1.6em] leading-tight ${FIELD_LABEL_CLASS}`}>From</label>
+                    <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <TextAreaField
                             name="from"
-                            density="compact"
-                            centerWhenShort
+                            density="normal"
                             value={formData.from}
                             onChange={onChange}
                             readOnly={!editable}
                             staticRender={staticRender}
                             rows={5}
+                            style={{ fontSize: partyAddressSize }}
                         />
                     </div>
                 </div>
 
                 <div className="flex min-w-0 flex-col p-[0.35%]">
-                    <label className={`text-center text-[0.85em] leading-tight ${FIELD_LABEL_CLASS}`}>To</label>
-                    <div className="flex min-h-0 flex-1 flex-col justify-center">
+                    <label className={`text-center text-[1.6em] leading-tight ${FIELD_LABEL_CLASS}`}>To</label>
+                    <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <TextAreaField
                             name="to"
-                            density="compact"
-                            centerWhenShort
+                            density="normal"
                             value={formData.to}
                             onChange={onChange}
                             readOnly={!editable}
                             staticRender={staticRender}
                             rows={5}
+                            style={{ fontSize: partyAddressSize }}
                         />
                     </div>
                 </div>
@@ -627,34 +680,34 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             <div
                 className="absolute grid overflow-hidden border border-black bg-white"
                 style={{
-                    ...boxStyle(0.49, 0.05, 0.9, 0.245),
-                    gridTemplateColumns: "1.05fr 2.15fr 1.95fr 1.45fr",
+                    ...boxStyle(0.484, 0.05, 0.9, 0.238),
+                    gridTemplateColumns: "1.25fr 1.7fr 2.15fr 1.45fr",
                 }}
             >
                 {/* Method of packing + number of packages */}
-                <div className="grid min-w-0 grid-rows-2 border-r border-black">
+                <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
                     <div className="flex min-w-0 flex-col border-b border-black p-[0.45%]">
-                        <label className={`text-center text-[0.85em] ${SECTION_LABEL_CLASS}`}>Method Of Packing</label>
-                        <div className="flex min-h-0 flex-1 flex-col justify-center">
+                        <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Method Of Packing</label>
+                        <div className="flex min-h-0 flex-1 flex-col justify-start">
                             <TextAreaField
                                 name="methodOfPacking"
                                 density="normal"
-                                centerWhenShort
                                 value={formData.methodOfPacking}
                                 onChange={onChange}
                                 readOnly={!editable}
                                 staticRender={staticRender}
                                 placeholder="Method Of Packing"
                                 rows={3}
+                                style={{ fontSize: UNIFORM_VALUE_SIZE }}
                             />
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-col p-[0.45%]">
-                        <label className={`text-center text-[0.85em] ${SECTION_LABEL_CLASS}`}>No. of Packages</label>
+                        <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>No. of Packages</label>
                         <div className="flex min-h-0 flex-1 flex-col justify-center">
                             <TextAreaField
                                 name="packages"
-                                density="normal"
+                                density="wide"
                                 centerWhenShort
                                 value={formData.packages}
                                 onChange={onChange}
@@ -662,6 +715,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 staticRender={staticRender}
                                 placeholder="No. of Packages"
                                 rows={3}
+                                style={{ fontSize: UNIFORM_VALUE_SIZE }}
                             />
                         </div>
                     </div>
@@ -669,27 +723,27 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
                 {/* Description */}
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.45%]">
-                    <label className={`text-center text-[0.85em] ${SECTION_LABEL_CLASS}`}>Description</label>
-                    <div className="flex min-h-0 flex-1 flex-col justify-center">
+                    <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Description</label>
+                    <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <TextAreaField
                             name="description"
                             density="wide"
-                            centerWhenShort
                             value={formData.description}
                             onChange={onChange}
                             readOnly={!editable}
                             staticRender={staticRender}
                             placeholder="Description"
                             rows={8}
+                            style={{ fontSize: descriptionSize }}
                         />
                     </div>
                 </div>
 
                 {/* Weight/Rate upper + Basis of Booking lower */}
-                <div className="grid min-w-0 grid-rows-[1fr_1fr] border-r border-black">
+                <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
                     <div className="grid min-w-0 grid-cols-3 border-b border-black">
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className={`whitespace-nowrap text-center text-[0.76em] ${SECTION_LABEL_CLASS}`}>Actual Wt.</label>
+                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Actual Wt.</label>
                             <div className="flex min-h-0 flex-1 flex-col justify-center">
                                 <TextAreaField
                                     name="actualWt"
@@ -701,11 +755,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                     staticRender={staticRender}
                                     placeholder="Actual"
                                     rows={3}
+                                    style={{ fontSize: actualChargedRateSize }}
                                 />
                             </div>
                         </div>
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className={`whitespace-nowrap text-center text-[0.76em] ${SECTION_LABEL_CLASS}`}>Charged Wt.</label>
+                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Charged Wt.</label>
                             <div className="flex min-h-0 flex-1 flex-col justify-center">
                                 <TextAreaField
                                     name="chargedWt"
@@ -717,11 +772,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                     staticRender={staticRender}
                                     placeholder="Charged"
                                     rows={3}
+                                    style={{ fontSize: actualChargedRateSize }}
                                 />
                             </div>
                         </div>
                         <div className="flex min-w-0 flex-col p-[0.35%]">
-                            <label className={`whitespace-nowrap text-center text-[0.76em] ${SECTION_LABEL_CLASS}`}>Rate</label>
+                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Rate</label>
                             <div className="flex min-h-0 flex-1 flex-col justify-center">
                                 <TextAreaField
                                     name="rate"
@@ -733,14 +789,15 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                     staticRender={staticRender}
                                     placeholder="Rate"
                                     rows={3}
+                                    style={{ fontSize: actualChargedRateSize }}
                                 />
                             </div>
                         </div>
                     </div>
 
                     <div className="flex min-w-0 flex-col p-[0.45%]">
-                        <label className={`text-center text-[0.85em] ${SECTION_LABEL_CLASS}`}>Basis of Booking</label>
-                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1 text-[0.8em]">
+                        <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Basis of Booking</label>
+                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1" style={{ fontSize: "17px" }}>
                             {basisOfBookingOptions.map(option =>
                                 editable ? (
                                     <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -767,7 +824,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
                 {/* Amount column */}
                 <div className="grid min-w-0 grid-rows-[auto_repeat(8,minmax(0,1fr))]">
-                    <div className={`flex items-center justify-center border-b border-black text-[0.85em] ${SECTION_LABEL_CLASS}`}>
+                    <div className={`flex items-center justify-center border-b border-black text-[1.6em] ${SECTION_LABEL_CLASS}`}>
                         Amount
                     </div>
                     {[
@@ -786,7 +843,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 index < 7 ? "border-b border-black" : ""
                             }`}
                         >
-                            <div className={`flex items-center border-r border-black px-[0.35em] text-[0.94em] leading-tight ${FIELD_LABEL_CLASS}`}>
+                            <div className={`flex items-center border-r border-black px-[0.35em] leading-tight ${FIELD_LABEL_CLASS}`} style={{ fontSize: "14px" }}>
                                 {label}
                             </div>
                             <TextInput
@@ -809,7 +866,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 align="right"
                                 inputMode="decimal"
                                 className="border-0"
-                                tiers={NARROW_SINGLE_LINE_TIERS}
+                                tiers={DEFAULT_SINGLE_LINE_TIERS}
+                                style={{ fontSize: UNIFORM_VALUE_SIZE }}
                             />
                         </div>
                     ))}
@@ -817,7 +875,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             </div>
 
             {/* Declared value / Driver */}
-            <PositionedBox style={boxStyle(0.747, 0.05, 0.445, 0.038)} label="Declared Value" className="justify-center">
+            <PositionedBox style={boxStyle(0.732, 0.05, 0.445, 0.047)} label="Declared Value" className="justify-center">
                 <TextInput
                     name="declaredValue"
                     value={formData.declaredValue}
@@ -826,10 +884,11 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     staticRender={staticRender}
                     placeholder="Declared Value"
                     tiers={GENEROUS_SINGLE_LINE_TIERS}
+                    style={{ fontSize: declaredValueDriverSize }}
                 />
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.747, 0.505, 0.445, 0.038)} label="Driver" className="justify-center">
+            <PositionedBox style={boxStyle(0.732, 0.505, 0.445, 0.047)} label="Driver" className="justify-center">
                 <TextInput
                     name="driver"
                     value={formData.driver}
@@ -838,11 +897,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     staticRender={staticRender}
                     placeholder="Driver"
                     tiers={GENEROUS_SINGLE_LINE_TIERS}
+                    style={{ fontSize: declaredValueDriverSize }}
                 />
             </PositionedBox>
 
             {/* Signature / Remarks */}
-            <PositionedBox style={boxStyle(0.795, 0.05, 0.9, 0.093)} label="Signature or Remarks" labelClassName={SECTION_LABEL_CLASS}>
+            <PositionedBox style={boxStyle(0.789, 0.05, 0.9, 0.091)} label="Signature or Remarks" labelClassName={SECTION_LABEL_CLASS}>
                 <div className="relative flex min-h-0 flex-1 flex-col justify-center">
                     <TextAreaField
                         className="pr-[52%]"
@@ -854,6 +914,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         rows={3}
+                        style={{ fontSize: UNIFORM_VALUE_SIZE }}
                     />
                     <div className="absolute inset-y-0 right-[25%] flex w-[27%] flex-col justify-end border-l border-black bg-white px-[0.35em] pb-[0.3em]">
                         <div className="border-b border-black" />
@@ -862,7 +923,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         </span>
                     </div>
                     <div className="absolute inset-y-0 right-0 flex w-[25%] flex-col justify-center border-l border-black bg-white pl-[0.35em]">
-                        <label className={`mb-[0.2em] block text-[0.85em] leading-tight ${FIELD_LABEL_CLASS}`}>Booking Clerk</label>
+                        <label className={`mb-[0.2em] block text-[1.6em] leading-tight ${FIELD_LABEL_CLASS}`}>Booking Clerk</label>
                         <TextInput
                             className="h-[1.8em]"
                             name="bookingClerk"
@@ -872,6 +933,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             staticRender={staticRender}
                             placeholder="Booking Clerk"
                             tiers={GENEROUS_SINGLE_LINE_TIERS}
+                            style={{ fontSize: UNIFORM_VALUE_SIZE }}
                         />
                     </div>
                 </div>

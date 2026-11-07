@@ -35,7 +35,16 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use((config) => {
   const stored = localStorage.getItem("auth");
-  const auth = stored ? JSON.parse(stored) : null;
+  let auth: { token?: string } | null = null;
+  if (stored) {
+    try {
+      auth = JSON.parse(stored);
+    } catch {
+      // Corrupted/manually-edited storage value — treat as logged out
+      // rather than throwing here and breaking every outgoing request.
+      auth = null;
+    }
+  }
 
   if (auth?.token) {
     config.headers.Authorization = `Bearer ${auth.token}`;
@@ -43,5 +52,21 @@ axiosInstance.interceptors.request.use((config) => {
 
   return config;
 });
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("auth");
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default axiosInstance;

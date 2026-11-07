@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import { disableUserAccount, getAllUsers } from "../api/usersApi";
+import { assignUserToGroup, createGroup, getAllGroups } from "../api/groupsApi";
+import type { Group } from "../api/groupsApi";
 import { useAuth } from "../context/AuthContext";
 import type { UserRecord } from "../types/user";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -11,6 +13,11 @@ const UsersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  const isSuperadmin = user?.role === "superadmin";
 
   const loadUsers = async () => {
     setLoading(true);
@@ -26,9 +33,61 @@ const UsersPage: React.FC = () => {
     }
   };
 
+  const loadGroups = async () => {
+    try {
+      const response = await getAllGroups();
+      setGroups(response.data);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to load groups"));
+    }
+  };
+
   useEffect(() => {
     void loadUsers();
-  }, []);
+    if (isSuperadmin) {
+      void loadGroups();
+    }
+  }, [isSuperadmin]);
+
+  const handleCreateGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedName = newGroupName.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    setIsCreatingGroup(true);
+    setActionMessage("");
+    setError("");
+
+    try {
+      await createGroup(trimmedName);
+      setNewGroupName("");
+      setActionMessage("Group created.");
+      await loadGroups();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to create group"));
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  const handleAssignGroup = async (userId: string, groupId: string) => {
+    if (!groupId) {
+      return;
+    }
+
+    setActionMessage("");
+    setError("");
+
+    try {
+      await assignUserToGroup(groupId, userId);
+      setActionMessage("User assigned to group — their saved contacts have been merged into it.");
+      await loadUsers();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Failed to assign user to group"));
+    }
+  };
 
   const handleDisable = async (id: string) => {
     setActionMessage("");
@@ -89,6 +148,44 @@ const UsersPage: React.FC = () => {
           </div>
         </section>
 
+        {isSuperadmin ? (
+          <section className="card mt-8 p-6">
+            <h2 className="text-lg font-bold text-slate-900">Shared contact groups</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Users in the same group share one consignor/consignee saved-contacts list. Assigning
+              a user to a group merges their existing saved contacts into it.
+            </p>
+            <form onSubmit={handleCreateGroup} className="mt-4 flex flex-wrap gap-3">
+              <input
+                type="text"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="New group name"
+                className="input max-w-xs"
+              />
+              <button
+                type="submit"
+                disabled={isCreatingGroup || !newGroupName.trim()}
+                className="rounded-2xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50"
+              >
+                {isCreatingGroup ? "Creating..." : "Create Group"}
+              </button>
+            </form>
+            {groups.length > 0 ? (
+              <ul className="mt-4 flex flex-wrap gap-2">
+                {groups.map((group) => (
+                  <li
+                    key={group.id}
+                    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    {group.name}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        ) : null}
+
         <section className="card mt-8 p-6">
           {actionMessage ? (
             <p className="mb-4 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
@@ -112,6 +209,7 @@ const UsersPage: React.FC = () => {
                     <th className="px-5 py-4 font-semibold">Phone</th>
                     <th className="px-5 py-4 font-semibold">Role</th>
                     <th className="px-5 py-4 font-semibold">Status</th>
+                    {isSuperadmin ? <th className="px-5 py-4 font-semibold">Group</th> : null}
                     <th className="px-5 py-4 font-semibold">Action</th>
                   </tr>
                 </thead>
@@ -143,6 +241,22 @@ const UsersPage: React.FC = () => {
                             {item.isActive ? "Active" : "Disabled"}
                           </span>
                         </td>
+                        {isSuperadmin ? (
+                          <td className="px-5 py-4">
+                            <select
+                              value={item.groupId || ""}
+                              onChange={(e) => handleAssignGroup(id, e.target.value)}
+                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                            >
+                              <option value="">No group</option>
+                              {groups.map((group) => (
+                                <option key={group.id} value={group.id}>
+                                  {group.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        ) : null}
                         <td className="px-5 py-4">
                           {canDisable ? (
                             <button

@@ -4,11 +4,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const multer_1 = __importDefault(require("multer"));
 const biltyController_1 = require("../controllers/biltyController");
 const auth_1 = __importDefault(require("../middleware/auth"));
 const authorize_1 = __importDefault(require("../middleware/authorize"));
 const router = (0, express_1.Router)();
+const ALLOWED_BILL_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const billUpload = (0, multer_1.default)({
+    storage: multer_1.default.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, callback) => {
+        if (ALLOWED_BILL_MIME_TYPES.includes(file.mimetype)) {
+            return callback(null, true);
+        }
+        callback(new Error("Only JPEG, PNG, WEBP images or PDF files are allowed"));
+    },
+});
 router.post("/pay", auth_1.default, biltyController_1.purchaseBiltyAccess);
+router.post("/extract-bill", auth_1.default, billUpload.single("bill"), biltyController_1.extractBillData);
 router.get("/generate", auth_1.default, biltyController_1.generateBilty);
 router.get("/my", auth_1.default, biltyController_1.getMyBilty);
 router.get("/all", auth_1.default, (0, authorize_1.default)("superadmin"), biltyController_1.getAllBilty);

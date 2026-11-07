@@ -37,3 +37,16 @@ export const getBilty = (id: string) =>
 
 export const deleteBilty = (id: string) =>
   axiosInstance.delete<{ message: string }>(`/bilty/${id}`);
+
+export const extractBillData = (file: File) => {
+  const body = new FormData();
+  body.append("bill", file);
+
+  return axiosInstance.post<{
+    message: string;
+    extractedFields: Record<string, string>;
+    rawText: string;
+  }>("/bilty/extract-bill", body, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};

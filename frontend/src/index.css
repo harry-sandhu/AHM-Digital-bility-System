@@ -30,6 +30,10 @@ h1, h2, h3 {
     @apply inline-flex items-center rounded-pill px-3 py-1 text-xs font-semibold uppercase tracking-wide;
 }
 
+.print-bilty-page {
+    container-type: inline-size;
+}
+
 .no-print {
     display: block;
 }
@@ -42,6 +46,26 @@ h1, h2, h3 {
     @page {
         size: A4 portrait;
         margin: 0;
+    }
+
+    /* Every page is wrapped in .page-shell (min-h-screen, i.e. min-height:
+       100vh for the on-screen layout). Print never collapses that back down
+       on its own, and the reserved viewport-height space below the actual
+       content silently spills over into a blank trailing page. */
+    .page-shell {
+        min-height: 0 !important;
+    }
+
+    /* BiltyPage.tsx wraps the actual <form> in its own un-reset container
+       (`mx-auto max-w-7xl px-4 py-8`) between .page-shell and the <form>
+       the rules below target — its py-8 (64px) padding alone is enough
+       residual height to push the content past one A4 page and spill a
+       near-blank page 2. Navbar (a <header>, not a <div>, and already
+       `no-print`) is unaffected by this child selector. */
+    .page-shell > div {
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: none !important;
     }
 
     html,
