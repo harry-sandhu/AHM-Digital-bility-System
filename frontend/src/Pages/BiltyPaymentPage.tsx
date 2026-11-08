@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { purchaseBiltyAccess } from "../api/biltyApi";
 import { getApiErrorMessage } from "../utils/apiError";
 import { BILTY_TERMS_ACCEPTED_KEY } from "../constants/terms";
@@ -21,8 +22,8 @@ const formatDeadline = (deadline?: string | null) => {
 const BiltyPaymentPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
+  const { showError } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
   const [freightAmount, setFreightAmount] = useState("");
   const paymentDeadline = user?.biltyAccessExpiresAt
     ? new Date(user.biltyAccessExpiresAt)
@@ -41,10 +42,8 @@ const BiltyPaymentPage: React.FC = () => {
   }
 
   const handleContinue = async () => {
-    setError("");
-
     if (!hasValidFreightAmount) {
-      setError("Enter a valid freight amount greater than zero.");
+      showError("Enter a valid freight amount greater than zero.");
       return;
     }
 
@@ -55,7 +54,7 @@ const BiltyPaymentPage: React.FC = () => {
       updateUser(response.data.user);
       navigate("/bilty");
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to activate bilty access"));
+      showError(getApiErrorMessage(err, "Failed to activate bilty access"));
     } finally {
       setIsSubmitting(false);
     }
@@ -105,12 +104,6 @@ const BiltyPaymentPage: React.FC = () => {
                 Deadline: {formatDeadline(user?.biltyAccessExpiresAt)}
               </p>
             </div>
-
-            {error ? (
-              <p className="mt-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-                {error}
-              </p>
-            ) : null}
 
             <button
               onClick={handleContinue}

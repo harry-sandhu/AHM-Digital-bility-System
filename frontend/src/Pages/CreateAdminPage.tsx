@@ -2,22 +2,20 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { createAdminAccount } from "../api/usersApi";
+import { useToast } from "../context/ToastContext";
 import { getApiErrorMessage } from "../utils/apiError";
 import { normalizePhone } from "../utils/phone";
 
 const CreateAdminPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setIsSubmitting(true);
 
     try {
@@ -26,13 +24,13 @@ const CreateAdminPage: React.FC = () => {
         phone: normalizePhone(phone),
         password,
       });
-      setSuccess("Admin created successfully.");
+      showSuccess("Admin created successfully.");
       setName("");
       setPhone("");
       setPassword("");
       setTimeout(() => navigate("/users"), 900);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to create admin"));
+      showError(getApiErrorMessage(err, "Failed to create admin"));
     } finally {
       setIsSubmitting(false);
     }
@@ -72,17 +70,6 @@ const CreateAdminPage: React.FC = () => {
             <p className="mt-2 text-sm text-slate-500">
               Enter the name, phone number, and password for the new admin.
             </p>
-
-            {error ? (
-              <p className="mt-5 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-                {error}
-              </p>
-            ) : null}
-            {success ? (
-              <p className="mt-5 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
-                {success}
-              </p>
-            ) : null}
 
             <div className="mt-6 space-y-4">
               <input

@@ -2,30 +2,28 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/authApi";
 import AuthShell from "../components/AuthShell";
+import { useToast } from "../context/ToastContext";
 import { getApiErrorMessage } from "../utils/apiError";
 import { normalizePhone } from "../utils/phone";
 
 const SignupPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
     setIsSubmitting(true);
 
     try {
       await register({ name: name.trim(), phone: normalizePhone(phone), password });
-      setSuccess("Account created successfully. Redirecting to login...");
+      showSuccess("Account created successfully. Redirecting to login...");
       setTimeout(() => navigate("/login"), 900);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Signup failed"));
+      showError(getApiErrorMessage(err, "Signup failed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -46,17 +44,6 @@ const SignupPage: React.FC = () => {
             Your account will be created as a normal user. Admin accounts are created only by the super admin.
           </p>
         </div>
-
-        {error ? (
-          <p className="mt-6 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-            {error}
-          </p>
-        ) : null}
-        {success ? (
-          <p className="mt-6 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
-            {success}
-          </p>
-        ) : null}
 
         <div className="mt-6 space-y-4">
           <input

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getConsigneeContacts, getConsignorContacts } from "../api/contactsApi";
 import type { SavedContact } from "../api/contactsApi";
+import { useToast } from "../context/ToastContext";
 
 type SavedContactsPickerProps = {
   kind: "consignor" | "consignee";
@@ -11,10 +12,11 @@ type SavedContactsPickerProps = {
 /// affects the surrounding box's layout/sizing. Only rendered in editable
 /// mode (never in the static print/PDF render).
 const SavedContactsPicker: React.FC<SavedContactsPickerProps> = ({ kind, onSelect }) => {
+  const { showError } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [contacts, setContacts] = useState<SavedContact[]>([]);
-  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const handleToggle = async () => {
     if (isOpen) {
@@ -24,14 +26,15 @@ const SavedContactsPicker: React.FC<SavedContactsPickerProps> = ({ kind, onSelec
 
     setIsOpen(true);
     setIsLoading(true);
-    setError("");
+    setLoadFailed(false);
 
     try {
       const response =
         kind === "consignor" ? await getConsignorContacts() : await getConsigneeContacts();
       setContacts(response.data);
     } catch {
-      setError("Failed to load saved list");
+      setLoadFailed(true);
+      showError(`Failed to load saved ${kind} list`);
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +55,8 @@ const SavedContactsPicker: React.FC<SavedContactsPickerProps> = ({ kind, onSelec
         <div className="absolute right-0 top-full mt-1 max-h-64 w-72 overflow-y-auto rounded-lg border border-slate-200 bg-white text-left text-[0.85em] shadow-lg">
           {isLoading ? (
             <p className="px-3 py-2 text-slate-500">Loading…</p>
-          ) : error ? (
-            <p className="px-3 py-2 text-danger-600">{error}</p>
+          ) : loadFailed ? (
+            <p className="px-3 py-2 text-danger-600">Couldn't load the saved list.</p>
           ) : contacts.length === 0 ? (
             <p className="px-3 py-2 text-slate-500">
               No saved {kind}s yet — save one by filling it in and saving the bilty.

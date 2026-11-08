@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import BiltyDocument from "../components/BiltyDocument";
 import { createBilty, getBilty } from "../api/biltyApi";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { getApiErrorMessage } from "../utils/apiError";
 import {
   calculateBiltyTotals,
@@ -15,11 +16,13 @@ const BiltyEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { role } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState<BiltyFormState>(normalizeBiltyFormData());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  // Unlike other transient feedback, a load failure gates whether the form
+  // renders at all, so it stays as page state rather than a toast alone.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!id || role !== "superadmin") {
@@ -35,7 +38,8 @@ const BiltyEditPage: React.FC = () => {
           consignmentNo: String(response.data.consignmentNo ?? ""),
         });
       } catch (err) {
-        setError(getApiErrorMessage(err, "Failed to load bilty"));
+        setLoadFailed(true);
+        showError(getApiErrorMessage(err, "Failed to load bilty"));
       } finally {
         setLoading(false);
       }
@@ -55,8 +59,6 @@ const BiltyEditPage: React.FC = () => {
         [name]: event.target.value,
       })
     );
-    setMessage("");
-    setError("");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -66,14 +68,12 @@ const BiltyEditPage: React.FC = () => {
     }
 
     setSaving(true);
-    setMessage("");
-    setError("");
 
     try {
       const response = await createBilty({ biltyId: id, formData });
-      setMessage(response.data.message || "Bilty updated successfully.");
+      showSuccess(response.data.message || "Bilty updated successfully.");
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to update bilty"));
+      showError(getApiErrorMessage(err, "Failed to update bilty"));
     } finally {
       setSaving(false);
     }
@@ -109,10 +109,8 @@ const BiltyEditPage: React.FC = () => {
         </div>
 
         {loading ? <p className="no-print text-slate-500">Loading bilty...</p> : null}
-        {error ? <p className="no-print mb-4 text-danger-600">{error}</p> : null}
-        {message ? <p className="no-print mb-4 text-success-700">{message}</p> : null}
 
-        {!loading && !error ? (
+        {!loading && !loadFailed ? (
           <form onSubmit={handleSubmit}>
             <div className="no-print mb-4 flex justify-end">
               <button

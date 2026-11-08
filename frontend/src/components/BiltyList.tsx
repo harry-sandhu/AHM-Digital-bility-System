@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { deleteBilty, getAllBilties, getMyBilties } from "../api/biltyApi";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import type { BiltyRecord } from "../types/bilty";
 import {
   normalizeBiltyFormData,
@@ -121,9 +122,10 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
 
 const BiltyList: React.FC = () => {
   const { role } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [bilties, setBilties] = useState<BiltyRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [loadFailed, setLoadFailed] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "expired">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "biltyAsc" | "biltyDesc" | "deadline">("newest");
@@ -181,15 +183,16 @@ const BiltyList: React.FC = () => {
     try {
       await deleteBilty(bilty._id);
       setBilties((current) => current.filter((item) => item._id !== bilty._id));
+      showSuccess(`Bilty ${bilty.biltyNumber} deleted.`);
     } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to delete bilty");
+      showError(err?.response?.data?.error || "Failed to delete bilty");
     }
   };
 
   useEffect(() => {
     const fetchBilties = async () => {
       setLoading(true);
-      setError("");
+      setLoadFailed(false);
 
       try {
         const response =
@@ -199,7 +202,8 @@ const BiltyList: React.FC = () => {
 
         setBilties(response.data);
       } catch (err: any) {
-        setError(err?.response?.data?.error || "Failed to load bilties");
+        setLoadFailed(true);
+        showError(err?.response?.data?.error || "Failed to load bilties");
       } finally {
         setLoading(false);
       }
@@ -251,9 +255,8 @@ const BiltyList: React.FC = () => {
       ) : null}
 
       {loading ? <p className="text-slate-500">Loading bilties...</p> : null}
-      {error ? <p className="text-danger-600">{error}</p> : null}
 
-      {!loading && !error && visibleBilties.length === 0 ? (
+      {!loading && !loadFailed && visibleBilties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-slate-500">
           No bilty records found yet.
         </div>

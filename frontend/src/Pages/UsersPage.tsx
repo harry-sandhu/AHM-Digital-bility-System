@@ -4,15 +4,15 @@ import { disableUserAccount, getAllUsers } from "../api/usersApi";
 import { assignUserToGroup, createGroup, getAllGroups } from "../api/groupsApi";
 import type { Group } from "../api/groupsApi";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import type { UserRecord } from "../types/user";
 import { getApiErrorMessage } from "../utils/apiError";
 
 const UsersPage: React.FC = () => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
   const [newGroupName, setNewGroupName] = useState("");
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
@@ -21,13 +21,12 @@ const UsersPage: React.FC = () => {
 
   const loadUsers = async () => {
     setLoading(true);
-    setError("");
 
     try {
       const response = await getAllUsers();
       setUsers(response.data);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to load users"));
+      showError(getApiErrorMessage(err, "Failed to load users"));
     } finally {
       setLoading(false);
     }
@@ -38,7 +37,7 @@ const UsersPage: React.FC = () => {
       const response = await getAllGroups();
       setGroups(response.data);
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to load groups"));
+      showError(getApiErrorMessage(err, "Failed to load groups"));
     }
   };
 
@@ -57,16 +56,14 @@ const UsersPage: React.FC = () => {
     }
 
     setIsCreatingGroup(true);
-    setActionMessage("");
-    setError("");
 
     try {
       await createGroup(trimmedName);
       setNewGroupName("");
-      setActionMessage("Group created.");
+      showSuccess("Group created.");
       await loadGroups();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to create group"));
+      showError(getApiErrorMessage(err, "Failed to create group"));
     } finally {
       setIsCreatingGroup(false);
     }
@@ -77,28 +74,22 @@ const UsersPage: React.FC = () => {
       return;
     }
 
-    setActionMessage("");
-    setError("");
-
     try {
       await assignUserToGroup(groupId, userId);
-      setActionMessage("User assigned to group — their saved contacts have been merged into it.");
+      showSuccess("User assigned to group — their saved contacts have been merged into it.");
       await loadUsers();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to assign user to group"));
+      showError(getApiErrorMessage(err, "Failed to assign user to group"));
     }
   };
 
   const handleDisable = async (id: string) => {
-    setActionMessage("");
-    setError("");
-
     try {
       await disableUserAccount(id);
-      setActionMessage("User disabled successfully.");
+      showSuccess("User disabled successfully.");
       await loadUsers();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Failed to disable user"));
+      showError(getApiErrorMessage(err, "Failed to disable user"));
     }
   };
 
@@ -187,94 +178,146 @@ const UsersPage: React.FC = () => {
         ) : null}
 
         <section className="card mt-8 p-6">
-          {actionMessage ? (
-            <p className="mb-4 rounded-2xl border border-success-100 bg-success-50 px-4 py-3 text-sm text-success-700">
-              {actionMessage}
-            </p>
-          ) : null}
-          {error ? (
-            <p className="mb-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-              {error}
-            </p>
-          ) : null}
-
           {loading ? (
             <p className="text-slate-500">Loading users...</p>
           ) : (
-            <div className="overflow-x-auto rounded-card border border-slate-200">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="px-5 py-4 font-semibold">Name</th>
-                    <th className="px-5 py-4 font-semibold">Phone</th>
-                    <th className="px-5 py-4 font-semibold">Role</th>
-                    <th className="px-5 py-4 font-semibold">Status</th>
-                    {isSuperadmin ? <th className="px-5 py-4 font-semibold">Group</th> : null}
-                    <th className="px-5 py-4 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {users.map((item) => {
-                    const id = item._id || item.id || "";
-                    const canDisable =
-                      user?.role === "superadmin" &&
-                      item.role === "user" &&
-                      item.isActive;
+            <>
+              {/* Desktop table — a mobile viewport can't reach columns past
+                  Role with no visible scroll affordance, so narrow screens
+                  get the stacked-card layout below instead. */}
+              <div className="hidden overflow-x-auto rounded-card border border-slate-200 lg:block">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="px-5 py-4 font-semibold">Name</th>
+                      <th className="px-5 py-4 font-semibold">Phone</th>
+                      <th className="px-5 py-4 font-semibold">Role</th>
+                      <th className="px-5 py-4 font-semibold">Status</th>
+                      {isSuperadmin ? <th className="px-5 py-4 font-semibold">Group</th> : null}
+                      <th className="px-5 py-4 font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {users.map((item) => {
+                      const id = item._id || item.id || "";
+                      const canDisable =
+                        user?.role === "superadmin" &&
+                        item.role === "user" &&
+                        item.isActive;
 
-                    return (
-                      <tr key={id} className="hover:bg-slate-50/70">
-                        <td className="px-5 py-4 font-medium text-slate-900">{item.name}</td>
-                        <td className="px-5 py-4 text-slate-600">{item.phone}</td>
-                        <td className="px-5 py-4">
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                            {item.role}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                              item.isActive
-                                ? "bg-success-100 text-success-700"
-                                : "bg-danger-100 text-danger-700"
-                            }`}
-                          >
-                            {item.isActive ? "Active" : "Disabled"}
-                          </span>
-                        </td>
-                        {isSuperadmin ? (
+                      return (
+                        <tr key={id} className="hover:bg-slate-50/70">
+                          <td className="px-5 py-4 font-medium text-slate-900">{item.name}</td>
+                          <td className="px-5 py-4 text-slate-600">{item.phone}</td>
                           <td className="px-5 py-4">
-                            <select
-                              value={item.groupId || ""}
-                              onChange={(e) => handleAssignGroup(id, e.target.value)}
-                              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                            >
-                              <option value="">No group</option>
-                              {groups.map((group) => (
-                                <option key={group.id} value={group.id}>
-                                  {group.name}
-                                </option>
-                              ))}
-                            </select>
+                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                              {item.role}
+                            </span>
                           </td>
-                        ) : null}
-                        <td className="px-5 py-4">
-                          {canDisable ? (
-                            <button
-                              onClick={() => handleDisable(id)}
-                              className="rounded-full bg-danger-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-700"
+                          <td className="px-5 py-4">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                item.isActive
+                                  ? "bg-success-100 text-success-700"
+                                  : "bg-danger-100 text-danger-700"
+                              }`}
                             >
-                              Disable User
-                            </button>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                              {item.isActive ? "Active" : "Disabled"}
+                            </span>
+                          </td>
+                          {isSuperadmin ? (
+                            <td className="px-5 py-4">
+                              <select
+                                value={item.groupId || ""}
+                                onChange={(e) => handleAssignGroup(id, e.target.value)}
+                                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                              >
+                                <option value="">No group</option>
+                                {groups.map((group) => (
+                                  <option key={group.id} value={group.id}>
+                                    {group.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          ) : null}
+                          <td className="px-5 py-4">
+                            {canDisable ? (
+                              <button
+                                onClick={() => handleDisable(id)}
+                                className="rounded-full bg-danger-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-700"
+                              >
+                                Disable User
+                              </button>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-4 lg:hidden">
+                {users.map((item) => {
+                  const id = item._id || item.id || "";
+                  const canDisable =
+                    user?.role === "superadmin" &&
+                    item.role === "user" &&
+                    item.isActive;
+
+                  return (
+                    <div key={id} className="rounded-card border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-slate-900">{item.name}</p>
+                          <p className="text-xs text-slate-500">{item.phone}</p>
+                        </div>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            item.isActive
+                              ? "bg-success-100 text-success-700"
+                              : "bg-danger-100 text-danger-700"
+                          }`}
+                        >
+                          {item.isActive ? "Active" : "Disabled"}
+                        </span>
+                      </div>
+                      <span className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                        {item.role}
+                      </span>
+                      {isSuperadmin ? (
+                        <div className="mt-3">
+                          <label className="mb-1 block text-xs font-medium text-slate-500">Group</label>
+                          <select
+                            value={item.groupId || ""}
+                            onChange={(e) => handleAssignGroup(id, e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700"
+                          >
+                            <option value="">No group</option>
+                            {groups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                {group.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+                      {canDisable ? (
+                        <button
+                          onClick={() => handleDisable(id)}
+                          className="mt-3 w-full rounded-full bg-danger-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-danger-700"
+                        >
+                          Disable User
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       </div>

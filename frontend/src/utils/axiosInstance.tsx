@@ -1,4 +1,5 @@
 import axios from "axios";
+import { showExternalError } from "../context/ToastContext";
 
 const normalizeApiBaseUrl = (url?: string) => {
   const fallbackUrl = "http://localhost:5000/api";
@@ -64,6 +65,22 @@ axiosInstance.interceptors.response.use(
       ) {
         window.location.href = "/login";
       }
+    } else if (!error.response) {
+      // No response at all (network failure, timeout, CORS rejection) —
+      // nothing downstream has a server message to show, so this is the
+      // only place that ever will.
+      showExternalError(
+        "Couldn't reach the server. Check your connection and try again."
+      );
+    } else if (error.response.status >= 500) {
+      // A 4xx almost always carries a specific `{ error: "..." }` message
+      // that the calling component already shows; a 5xx's message is
+      // deliberately generic ("Internal server error") and components
+      // rarely bother re-displaying that verbatim, so show it here once
+      // instead of leaving a failed action look like it did nothing.
+      showExternalError(
+        error.response.data?.error || "Something went wrong on our end. Please try again."
+      );
     }
     return Promise.reject(error);
   }

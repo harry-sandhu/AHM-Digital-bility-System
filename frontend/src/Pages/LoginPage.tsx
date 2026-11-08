@@ -3,20 +3,20 @@ import { Link, useNavigate } from "react-router-dom";
 import { login as loginApi } from "../api/authApi";
 import AuthShell from "../components/AuthShell";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { getApiErrorMessage } from "../utils/apiError";
 import { normalizePhone } from "../utils/phone";
 
 const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { login } = useAuth();
+  const { showError } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
     setIsSubmitting(true);
 
     try {
@@ -27,7 +27,7 @@ const LoginPage: React.FC = () => {
       login(response.data.token, response.data.user);
       navigate("/");
     } catch (err) {
-      setError(getApiErrorMessage(err, "Login failed"));
+      showError(getApiErrorMessage(err, "Login failed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -48,12 +48,6 @@ const LoginPage: React.FC = () => {
             Super admins, admins, and users log in here using phone and password.
           </p>
         </div>
-
-        {error ? (
-          <div className="mt-6 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600">
-            {error}
-          </div>
-        ) : null}
 
         <div className="mt-6 space-y-4">
           <div>

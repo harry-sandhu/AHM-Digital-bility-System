@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider, registerExternalToastHandler, useToast } from "./context/ToastContext";
 import type { Role } from "./types/auth";
 import LoginPage from "./Pages/LoginPage";
 import SignupPage from "./Pages/SignupPage";
@@ -131,12 +132,25 @@ const AppRoutes = () => {
   );
 };
 
+const ToastAxiosBridge: React.FC = () => {
+  const { showError } = useToast();
+
+  useEffect(() => {
+    registerExternalToastHandler(showError);
+  }, [showError]);
+
+  return null;
+};
+
 const App: React.FC = () => (
-  <AuthProvider>
-    <Router>
-      <AppRoutes />
-    </Router>
-  </AuthProvider>
+  <ToastProvider>
+    <ToastAxiosBridge />
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  </ToastProvider>
 );
 
 export default App;

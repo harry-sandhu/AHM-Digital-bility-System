@@ -1,5 +1,6 @@
 import React from "react";
 import type { BiltyFormState } from "../types/biltyForm";
+import SavedContactsPicker from "./SavedContactsPicker";
 
 type ChangeHandler = (
   e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -9,6 +10,8 @@ type BiltyMobileFormProps = {
   formData: BiltyFormState;
   onChange?: ChangeHandler;
   freightReadOnly?: boolean;
+  onSelectConsignor?: (address: string, gstin: string) => void;
+  onSelectConsignee?: (address: string, gstin: string) => void;
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -107,7 +110,13 @@ const RadioGroup: React.FC<{
   </fieldset>
 );
 
-const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({ formData, onChange, freightReadOnly = false }) => {
+const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
+  formData,
+  onChange,
+  freightReadOnly = false,
+  onSelectConsignor,
+  onSelectConsignee,
+}) => {
   return (
     <div className="grid gap-4">
       <Section title="Reserved Bilty">
@@ -154,12 +163,22 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({ formData, onChange, f
       </Section>
 
       <Section title="Consignor">
-        <Area label="Name & Address" name="consignorAddress" value={formData.consignorAddress} onChange={onChange} rows={3} />
+        <div className="relative">
+          {onChange && onSelectConsignor ? (
+            <SavedContactsPicker kind="consignor" onSelect={onSelectConsignor} />
+          ) : null}
+          <Area label="Name & Address" name="consignorAddress" value={formData.consignorAddress} onChange={onChange} rows={3} />
+        </div>
         <Field label="GSTIN" name="consignorGstin" value={formData.consignorGstin} onChange={onChange} />
       </Section>
 
       <Section title="Consignee">
-        <Area label="Name & Address" name="consigneeAddress" value={formData.consigneeAddress} onChange={onChange} rows={3} />
+        <div className="relative">
+          {onChange && onSelectConsignee ? (
+            <SavedContactsPicker kind="consignee" onSelect={onSelectConsignee} />
+          ) : null}
+          <Area label="Name & Address" name="consigneeAddress" value={formData.consigneeAddress} onChange={onChange} rows={3} />
+        </div>
         <Field label="GSTIN" name="consigneeGstin" value={formData.consigneeGstin} onChange={onChange} />
       </Section>
 

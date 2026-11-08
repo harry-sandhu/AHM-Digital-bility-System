@@ -4,6 +4,7 @@ import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons from "./BiltyDownloadButtons";
 import BiltyMobileForm from "./BiltyMobileForm";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import {
   calculateBiltyTotals,
   initialBiltyFormData,
@@ -30,13 +31,18 @@ const formatDeadlineTime = (deadline?: string | null) => {
 
 const BiltyForm: React.FC = () => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState<BiltyFormState>({
     ...initialBiltyFormData,
     bookingClerk: user?.name || "",
   });
   const [biltyId, setBiltyId] = useState("");
+  // Persistent state description (deadline reminder, resumed-draft note,
+  // scan-in-progress) — distinct from one-off action results (save
+  // succeeded/failed, scan succeeded/failed), which go through toasts below
+  // instead, since those are exactly the "nothing told me what happened"
+  // gaps that were reported.
   const [statusMessage, setStatusMessage] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
   const [isPreparing, setIsPreparing] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedBilty, setHasSavedBilty] = useState(false);
@@ -72,7 +78,6 @@ const BiltyForm: React.FC = () => {
 
     const initializeBilty = async () => {
       setIsPreparing(true);
-      setErrorMessage("");
       setStatusMessage("");
 
       const storedDraft = readBiltyDraft(user.id);
@@ -145,7 +150,7 @@ const BiltyForm: React.FC = () => {
           return;
         }
 
-        setErrorMessage(
+        showError(
           err?.response?.data?.error || "Failed to reserve bilty number"
         );
       } finally {
@@ -186,7 +191,6 @@ const BiltyForm: React.FC = () => {
       return;
     }
 
-    setErrorMessage("");
     setFormData((prev) =>
       calculateBiltyTotals({ ...prev, [name]: value })
     );
@@ -220,7 +224,6 @@ const BiltyForm: React.FC = () => {
     }
 
     setIsScanningBill(true);
-    setErrorMessage("");
     setStatusMessage("Reading the bill... this can take a few seconds.");
 
     try {
@@ -240,13 +243,15 @@ const BiltyForm: React.FC = () => {
         return calculateBiltyTotals(next);
       });
 
-      setStatusMessage(
+      setStatusMessage("");
+      showSuccess(
         filledFieldCount
           ? `${response.data.message} (${filledFieldCount} field${filledFieldCount === 1 ? "" : "s"} filled from the bill.)`
           : response.data.message
       );
     } catch (err: any) {
-      setErrorMessage(err?.response?.data?.error || "Failed to read the uploaded bill");
+      setStatusMessage("");
+      showError(err?.response?.data?.error || "Failed to read the uploaded bill");
     } finally {
       setIsScanningBill(false);
     }
@@ -256,13 +261,11 @@ const BiltyForm: React.FC = () => {
     e.preventDefault();
 
     if (!biltyId) {
-      setErrorMessage("Bilty number is not ready yet.");
+      showError("Bilty number is not ready yet.");
       return;
     }
 
     setIsSaving(true);
-    setErrorMessage("");
-    setStatusMessage("");
 
     try {
       const response = await createBilty({ biltyId, formData });
@@ -281,12 +284,13 @@ const BiltyForm: React.FC = () => {
         );
       }
       setHasSavedBilty(true);
-      setStatusMessage(
+      setStatusMessage("");
+      showSuccess(
         response.data.message ||
           "Bilty saved successfully. You can now download the 2-page PDF or PNG copy."
       );
     } catch (err: any) {
-      setErrorMessage(err?.response?.data?.error || "Failed to save bilty");
+      showError(err?.response?.data?.error || "Failed to save bilty");
     } finally {
       setIsSaving(false);
     }
@@ -361,17 +365,14 @@ const BiltyForm: React.FC = () => {
             {statusMessage}
           </div>
         ) : null}
-        {errorMessage ? (
-          <div className="no-print mb-4 rounded-2xl border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600 shadow-sm">
-            {errorMessage}
-          </div>
-        ) : null}
 
         <div className="no-print lg:hidden">
           <BiltyMobileForm
             formData={formData}
             onChange={isLocked ? undefined : handleChange}
             freightReadOnly={typeof user?.biltyAccessFreightAmount === "number"}
+            onSelectConsignor={isLocked ? undefined : handleSelectConsignor}
+            onSelectConsignee={isLocked ? undefined : handleSelectConsignee}
           />
         </div>
 
