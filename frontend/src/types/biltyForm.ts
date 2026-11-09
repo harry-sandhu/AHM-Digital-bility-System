@@ -84,6 +84,16 @@ export const initialBiltyFormData: BiltyFormState = {
   bookingClerk: "",
 };
 
+/** Fields that are always stored and shown in capitals. */
+export const UPPERCASE_FIELDS: ReadonlyArray<keyof BiltyFormState> = [
+  "lorryNo",
+  "consignorGstin",
+  "consigneeGstin",
+];
+
+export const applyFieldCase = (name: string, value: string) =>
+  (UPPERCASE_FIELDS as readonly string[]).includes(name) ? value.toUpperCase() : value;
+
 const parseAmount = (value: string) => {
   const parsed = Number(value.replace(/,/g, ""));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -113,6 +123,9 @@ export const normalizeBiltyFormData = (
   calculateBiltyTotals({
     ...initialBiltyFormData,
     ...(formData || {}),
+    ...Object.fromEntries(
+      UPPERCASE_FIELDS.map((field) => [field, (formData?.[field] || "").toUpperCase()])
+    ),
     gstPaidBy: formData?.gstPaidBy || "Consignor",
     basisOfBooking: formData?.basisOfBooking || "To Pay",
   });

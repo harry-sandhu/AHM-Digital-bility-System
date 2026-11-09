@@ -36,6 +36,14 @@ pub struct Bilty {
     pub payment_expires_at: Option<BsonDateTime>,
     #[serde(rename = "expiresAt", default)]
     pub expires_at: Option<BsonDateTime>,
+    /// Signed difference between the fee for the bilty's current freight
+    /// and the fee originally paid (`paymentAmount`): positive = extra
+    /// charge, negative = discount.
+    #[serde(rename = "freightAdjustment", default)]
+    pub freight_adjustment: Option<f64>,
+    /// Highest extra charge the user has already confirmed/paid.
+    #[serde(rename = "extraPaid", default)]
+    pub extra_paid: Option<f64>,
     #[serde(rename = "createdAt", default)]
     pub created_at: Option<BsonDateTime>,
 }

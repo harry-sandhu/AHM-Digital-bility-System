@@ -1,5 +1,5 @@
 export const getBiltyAccessAmount = (freightAmount: number) => {
-  if (freightAmount <= 10000) {
+  if (freightAmount <= 20000) {
     return 200;
   }
 

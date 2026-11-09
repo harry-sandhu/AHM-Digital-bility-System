@@ -20,13 +20,18 @@ export const purchaseBiltyAccess = (freightAmount: number) =>
 export const createBilty = (data: {
   biltyId: string;
   formData: Record<string, string>;
+  confirmExtraPayment?: boolean;
 }) =>
   axiosInstance.put<{ message: string; bilty: BiltyRecord }>(
     `/bilty/${data.biltyId}`,
     {
       formData: data.formData,
+      confirmExtraPayment: data.confirmExtraPayment || undefined,
     }
   );
+
+export const getPackingSuggestions = () =>
+  axiosInstance.get<string[]>("/bilty/suggestions/packing");
 
 export const getMyBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/my");
 

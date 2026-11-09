@@ -1,6 +1,7 @@
 import type { CSSProperties, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import type { BiltyFormState } from "../types/biltyForm";
-import SavedContactsPicker from "./SavedContactsPicker";
+import AutoSuggest from "./AutoSuggest";
+import type { Suggestion } from "../utils/suggest";
 
 const pct = (value: number) => `${value * 100}%`;
 
@@ -209,7 +210,7 @@ const DateInput: React.FC<
     if (staticRender) {
         return (
             <div
-                className={`relative flex w-full min-w-0 items-center overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] ${paddingRightClass} text-[1.5em] leading-tight text-black ${className}`}
+                className={`relative flex w-full min-w-0 items-center overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] pr-[0.2em] text-[1.5em] leading-tight text-black ${className}`}
                 style={fontSizeStyle}
                 title={formatStaticDate(value)}
             >
@@ -320,6 +321,12 @@ type BiltyDocumentProps = {
     fontSize?: CSSProperties["fontSize"];
     onSelectConsignor?: (address: string, gstin: string) => void;
     onSelectConsignee?: (address: string, gstin: string) => void;
+    onSelectPacking?: (value: string) => void;
+    suggestions?: {
+        consignor: Suggestion[];
+        consignee: Suggestion[];
+        packing: Suggestion[];
+    };
 };
 
 const BiltyDocument: React.FC<BiltyDocumentProps> = ({
@@ -329,9 +336,11 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     basisCopy = false,
     className = "",
     documentRef,
-    fontSize = "clamp(10px, 1cqw, 13px)",
+    fontSize = "clamp(6px, 1cqw, 13px)",
     onSelectConsignor,
     onSelectConsignee,
+    onSelectPacking,
+    suggestions,
 }) => {
     const editable = Boolean(onChange);
     const staticRender = !editable;
@@ -342,7 +351,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     // auto-tiering per field/group by content length. Boxes are sized to fit
     // typical real-world content at this size; extremely long outliers (far
     // past what the field is meant for) may clip rather than auto-shrink.
-    const UNIFORM_VALUE_SIZE = "18px";
+    const UNIFORM_VALUE_SIZE = "clamp(9px, 1.64cqw, 18px)";
     const lorryPhoneSize = UNIFORM_VALUE_SIZE;
     const consignmentInvoiceSize = UNIFORM_VALUE_SIZE;
     const partyAddressSize = UNIFORM_VALUE_SIZE;
@@ -520,7 +529,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "11.5px" }}
+                        style={{ fontSize: "clamp(6px, 1.05cqw, 11.5px)" }}
                     />
                 </div>
             </PositionedBox>
@@ -544,7 +553,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "16px" }}
+                        style={{ fontSize: "clamp(8px, 1.45cqw, 16px)" }}
                     />
                 </div>
             </PositionedBox>
@@ -580,24 +589,28 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 style={{ ...boxStyle(0.359, 0.05, 0.9, 0.115), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr" }}
             >
                 <div className="relative flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    {editable && onSelectConsignor ? (
-                        <SavedContactsPicker kind="consignor" onSelect={onSelectConsignor} />
-                    ) : null}
                     <label className={`block shrink-0 text-[1.6em] leading-tight ${SECTION_LABEL_CLASS}`}>
                         Consignor&apos;s Name &amp; Address
                     </label>
-                    <div className="flex min-h-0 flex-1 flex-col justify-center">
-                        <TextAreaField
-                            name="consignorAddress"
-                            density="wide"
-                            centerWhenShort
-                            value={formData.consignorAddress}
-                            onChange={onChange}
-                            readOnly={!editable}
-                            staticRender={staticRender}
-                            rows={4}
-                            style={{ fontSize: partyAddressSize }}
-                        />
+                    <div className="flex min-h-0 flex-1 flex-col justify-start">
+                        <AutoSuggest
+                            className="flex min-w-0 flex-col"
+                            query={formData.consignorAddress}
+                            suggestions={editable && onSelectConsignor ? suggestions?.consignor ?? [] : []}
+                            onPick={(suggestion) => onSelectConsignor?.(suggestion.text, suggestion.sub || "")}
+                        >
+                            <TextAreaField
+                                name="consignorAddress"
+                                density="wide"
+                                centerWhenShort
+                                value={formData.consignorAddress}
+                                onChange={onChange}
+                                readOnly={!editable}
+                                staticRender={staticRender}
+                                rows={4}
+                                style={{ fontSize: partyAddressSize }}
+                            />
+                        </AutoSuggest>
                         <TextInput
                             name="consignorGstin"
                             value={formData.consignorGstin}
@@ -612,24 +625,28 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 <div className="relative flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                    {editable && onSelectConsignee ? (
-                        <SavedContactsPicker kind="consignee" onSelect={onSelectConsignee} />
-                    ) : null}
                     <label className={`block shrink-0 text-[1.6em] leading-tight ${SECTION_LABEL_CLASS}`}>
                         Consignee&apos;s Name &amp; Address
                     </label>
-                    <div className="flex min-h-0 flex-1 flex-col justify-center">
-                        <TextAreaField
-                            name="consigneeAddress"
-                            density="wide"
-                            centerWhenShort
-                            value={formData.consigneeAddress}
-                            onChange={onChange}
-                            readOnly={!editable}
-                            staticRender={staticRender}
-                            rows={4}
-                            style={{ fontSize: partyAddressSize }}
-                        />
+                    <div className="flex min-h-0 flex-1 flex-col justify-start">
+                        <AutoSuggest
+                            className="flex min-w-0 flex-col"
+                            query={formData.consigneeAddress}
+                            suggestions={editable && onSelectConsignee ? suggestions?.consignee ?? [] : []}
+                            onPick={(suggestion) => onSelectConsignee?.(suggestion.text, suggestion.sub || "")}
+                        >
+                            <TextAreaField
+                                name="consigneeAddress"
+                                density="wide"
+                                centerWhenShort
+                                value={formData.consigneeAddress}
+                                onChange={onChange}
+                                readOnly={!editable}
+                                staticRender={staticRender}
+                                rows={4}
+                                style={{ fontSize: partyAddressSize }}
+                            />
+                        </AutoSuggest>
                         <TextInput
                             name="consigneeGstin"
                             value={formData.consigneeGstin}
@@ -687,26 +704,36 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 {/* Method of packing + number of packages */}
                 <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
                     <div className="flex min-w-0 flex-col border-b border-black p-[0.45%]">
-                        <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Method Of Packing</label>
+                        <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Method Of Packing</label>
                         <div className="flex min-h-0 flex-1 flex-col justify-start">
-                            <TextAreaField
-                                name="methodOfPacking"
-                                density="normal"
-                                value={formData.methodOfPacking}
-                                onChange={onChange}
-                                readOnly={!editable}
-                                staticRender={staticRender}
-                                placeholder="Method Of Packing"
-                                rows={3}
-                                style={{ fontSize: UNIFORM_VALUE_SIZE }}
-                            />
+                            <AutoSuggest
+                                className="flex min-h-0 flex-1 flex-col"
+                                query={formData.methodOfPacking}
+                                suggestions={editable && onSelectPacking ? suggestions?.packing ?? [] : []}
+                                onPick={(suggestion) => onSelectPacking?.(suggestion.text)}
+                            >
+                                <TextAreaField
+                                    name="methodOfPacking"
+                                    density="normal"
+                                    value={formData.methodOfPacking}
+                                    onChange={onChange}
+                                    readOnly={!editable}
+                                    staticRender={staticRender}
+                                    placeholder="Method Of Packing"
+                                    rows={3}
+                                    style={{ fontSize: UNIFORM_VALUE_SIZE }}
+                                />
+                            </AutoSuggest>
                         </div>
                     </div>
                     <div className="flex min-w-0 flex-col p-[0.45%]">
                         <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>No. of Packages</label>
-                        <div className="flex min-h-0 flex-1 flex-col justify-center">
+                        <div className="flex min-h-0 flex-1 flex-col justify-start">
                             <TextAreaField
                                 name="packages"
+                                autoComplete="off"
+                                autoCorrect="off"
+                                spellCheck={false}
                                 density="wide"
                                 centerWhenShort
                                 value={formData.packages}
@@ -723,7 +750,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
                 {/* Description */}
                 <div className="flex min-w-0 flex-col border-r border-black p-[0.45%]">
-                    <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Description</label>
+                    <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Description</label>
                     <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <TextAreaField
                             name="description"
@@ -743,8 +770,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
                     <div className="grid min-w-0 grid-cols-3 border-b border-black">
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Actual Wt.</label>
-                            <div className="flex min-h-0 flex-1 flex-col justify-center">
+                            <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Actual Wt.</label>
+                            <div className="flex min-h-0 flex-1 flex-col justify-start">
                                 <TextAreaField
                                     name="actualWt"
                                     density="narrow"
@@ -760,8 +787,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             </div>
                         </div>
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
-                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Charged Wt.</label>
-                            <div className="flex min-h-0 flex-1 flex-col justify-center">
+                            <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Charged Wt.</label>
+                            <div className="flex min-h-0 flex-1 flex-col justify-start">
                                 <TextAreaField
                                     name="chargedWt"
                                     density="narrow"
@@ -777,8 +804,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             </div>
                         </div>
                         <div className="flex min-w-0 flex-col p-[0.35%]">
-                            <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Rate</label>
-                            <div className="flex min-h-0 flex-1 flex-col justify-center">
+                            <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Rate</label>
+                            <div className="flex min-h-0 flex-1 flex-col justify-start">
                                 <TextAreaField
                                     name="rate"
                                     density="narrow"
@@ -797,7 +824,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
                     <div className="flex min-w-0 flex-col p-[0.45%]">
                         <label className={`text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Basis of Booking</label>
-                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1" style={{ fontSize: "17px" }}>
+                        <div className="flex flex-1 flex-col items-center justify-center gap-y-1" style={{ fontSize: "clamp(8px, 1.55cqw, 17px)" }}>
                             {basisOfBookingOptions.map(option =>
                                 editable ? (
                                     <label key={option} className="inline-flex items-center gap-1 whitespace-nowrap">
@@ -843,7 +870,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 index < 7 ? "border-b border-black" : ""
                             }`}
                         >
-                            <div className={`flex items-center border-r border-black px-[0.35em] leading-tight ${FIELD_LABEL_CLASS}`} style={{ fontSize: "14px" }}>
+                            <div className={`flex items-center border-r border-black px-[0.35em] leading-tight ${FIELD_LABEL_CLASS}`} style={{ fontSize: "clamp(7px, 1.27cqw, 14px)" }}>
                                 {label}
                             </div>
                             <TextInput

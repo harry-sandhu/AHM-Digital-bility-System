@@ -84,13 +84,25 @@ pub async fn auto_save_contact(
         }
     }
 
-    if collection.find_one(filter).await?.is_some() {
+    let gstin = gstin
+        .map(|s| s.trim().to_uppercase())
+        .filter(|s| !s.is_empty());
+
+    if let Some(existing) = collection.find_one(filter.clone()).await? {
+        // The contact may have first been saved without a GSTIN. Fill it in
+        // now that one was typed, so picking the contact auto-fills it.
+        if existing.gstin.is_none() {
+            if let Some(gstin) = &gstin {
+                collection
+                    .update_one(
+                        doc! { "_id": existing.id },
+                        doc! { "$set": { "gstin": gstin } },
+                    )
+                    .await?;
+            }
+        }
         return Ok(());
     }
-
-    let gstin = gstin
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
 
     let contact = Contact {
         id: mongodb::bson::oid::ObjectId::new(),

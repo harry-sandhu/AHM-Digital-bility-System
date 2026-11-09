@@ -57,7 +57,7 @@ const ToastViewport: React.FC<{
   <div
     aria-live="polite"
     aria-atomic="false"
-    className="pointer-events-none fixed inset-x-0 top-4 z-[1000] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-4 sm:items-end"
+    className="no-print pointer-events-none fixed inset-x-0 top-4 z-[1000] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:right-4 sm:items-end"
   >
     {toasts.map((toast) => (
       <div

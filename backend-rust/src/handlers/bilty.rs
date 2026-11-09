@@ -22,7 +22,7 @@ use crate::{
 use axum::{
     extract::{Multipart, Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     Json,
 };
 use chrono::Utc;
@@ -171,6 +171,12 @@ async fn build_bilty_response(state: &Arc<AppState>, bilty: &Bilty) -> Value {
     if let Some(amount) = bilty.payment_amount {
         value["paymentAmount"] = json!(amount);
     }
+    if let Some(adjustment) = bilty.freight_adjustment {
+        value["freightAdjustment"] = json!(adjustment);
+    }
+    if let Some(extra) = bilty.extra_paid {
+        value["extraPaid"] = json!(extra);
+    }
     if let Some(s) = to_iso_string(bilty.payment_paid_at) {
         value["paymentPaidAt"] = json!(s);
     }
@@ -253,6 +259,8 @@ pub async fn generate_bilty(
         payment_paid_at: Some(BsonDateTime::from_chrono(payment_paid_at)),
         payment_expires_at: Some(BsonDateTime::from_chrono(expires_at)),
         expires_at: Some(BsonDateTime::from_chrono(expires_at)),
+        freight_adjustment: None,
+        extra_paid: None,
         created_at: Some(BsonDateTime::now()),
     };
 
@@ -361,6 +369,10 @@ pub async fn purchase_bilty_access(
 pub struct UpdateBiltyRequest {
     #[serde(rename = "formData")]
     pub form_data: Option<Value>,
+    /// Set by the client after the user accepts the "pay extra" popup when
+    /// a freight change moves the bilty into a more expensive tier.
+    #[serde(rename = "confirmExtraPayment", default)]
+    pub confirm_extra_payment: Option<bool>,
 }
 
 pub async fn update_bilty(
@@ -368,7 +380,7 @@ pub async fn update_bilty(
     current_user: UserRecord,
     Path(id): Path<String>,
     Json(body): Json<UpdateBiltyRequest>,
-) -> Result<impl IntoResponse, AppError> {
+) -> Result<Response, AppError> {
     let object_id =
         ObjectId::parse_str(&id).map_err(|_| AppError::internal("Failed to update bilty"))?;
 
@@ -418,6 +430,14 @@ pub async fn update_bilty(
         }
     }
 
+    // Lorry number and GSTINs are always stored in capitals.
+    for field in ["lorryNo", "consignorGstin", "consigneeGstin"] {
+        if let Ok(value) = next_form_data.get_str(field) {
+            let upper = value.to_uppercase();
+            next_form_data.insert(field, upper);
+        }
+    }
+
     next_form_data.insert(
         "consignmentNo",
         bilty.consignment_no.map(|n| n.to_string()).unwrap_or_default(),
@@ -437,11 +457,50 @@ pub async fn update_bilty(
         .unwrap_or("To Pay");
     next_form_data.insert("basisOfBooking", basis_of_booking);
 
-    if is_owner {
+    // Freight is editable. If the form left it empty, fall back to the
+    // freight the owner paid for at the payment step.
+    if is_owner && parse_amount(next_form_data.get_str("freight").ok()) <= 0.0 {
         if let Some(freight_amount) = current_user.bilty_access_freight_amount {
             next_form_data.insert("freight", format_js_number(freight_amount));
         }
     }
+
+    // Tier adjustment: compare the fee for the new freight against the fee
+    // originally paid for this bilty.
+    let freight_now = parse_amount(next_form_data.get_str("freight").ok());
+    let mut new_adjustment = bilty.freight_adjustment;
+    let mut new_extra_paid = bilty.extra_paid;
+    if freight_now > 0.0 {
+        let base_fee = bilty.payment_amount.unwrap_or(DEFAULT_BILTY_ACCESS_AMOUNT);
+        let adjustment = get_bilty_access_amount(freight_now) - base_fee;
+        let already_paid = bilty.extra_paid.unwrap_or(0.0);
+
+        if adjustment > already_paid {
+            let extra_due = adjustment - already_paid;
+            if is_owner {
+                if body.confirm_extra_payment != Some(true) {
+                    return Ok((
+                        StatusCode::PAYMENT_REQUIRED,
+                        Json(json!({
+                            "error": format!("Changing freight to \u{20b9}{} moves this bilty to a higher tier. Pay \u{20b9}{} extra to continue.", format_amount(freight_now), format_amount(extra_due)),
+                            "code": "EXTRA_PAYMENT_REQUIRED",
+                            "extraDue": extra_due,
+                            "newFee": get_bilty_access_amount(freight_now),
+                            "paidFee": base_fee,
+                        })),
+                    )
+                        .into_response());
+                }
+                new_extra_paid = Some(adjustment);
+            } else {
+                // A superadmin editing someone else's bilty waives the charge.
+                new_extra_paid = Some(adjustment);
+            }
+        }
+        new_adjustment = Some(adjustment);
+    }
+    bilty.freight_adjustment = new_adjustment;
+    bilty.extra_paid = new_extra_paid;
 
     let grand_total = parse_amount(next_form_data.get_str("freight").ok())
         + parse_amount(next_form_data.get_str("labour").ok())
@@ -505,7 +564,45 @@ pub async fn update_bilty(
     Ok(Json(json!({
         "message": "Bilty updated successfully",
         "bilty": build_bilty_response(&state, &saved).await,
-    })))
+    }))
+    .into_response())
+}
+
+/// GET /api/bilty/suggestions/packing — the user's previously-used
+/// "method of packing" values, most frequently used first.
+pub async fn get_packing_suggestions(
+    State(state): State<Arc<AppState>>,
+    current_user: UserRecord,
+) -> Result<impl IntoResponse, AppError> {
+    let cursor = state
+        .db
+        .collection::<Document>("bilties")
+        .find(doc! { "createdBy": current_user.id })
+        .projection(doc! { "formData.methodOfPacking": 1 })
+        .await?;
+    let docs: Vec<Document> = cursor.try_collect().await?;
+
+    let mut counts: std::collections::HashMap<String, (usize, String)> = std::collections::HashMap::new();
+    for doc in &docs {
+        let value = doc
+            .get_document("formData")
+            .ok()
+            .and_then(|form| form.get_str("methodOfPacking").ok())
+            .map(str::trim)
+            .unwrap_or("");
+        if value.is_empty() {
+            continue;
+        }
+        let entry = counts
+            .entry(value.to_lowercase())
+            .or_insert_with(|| (0, value.to_string()));
+        entry.0 += 1;
+    }
+
+    let mut ranked: Vec<(usize, String)> = counts.into_values().collect();
+    ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+
+    Ok(Json(ranked.into_iter().map(|(_, value)| value).collect::<Vec<_>>()))
 }
 
 pub async fn get_my_bilty(

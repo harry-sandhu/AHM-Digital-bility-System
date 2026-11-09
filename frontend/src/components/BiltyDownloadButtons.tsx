@@ -4,12 +4,19 @@ type BiltyDownloadButtonsProps = {
   disabled?: boolean;
   size?: "sm" | "md";
   showPrintButton?: boolean;
+  /** When set, shows an Original / Duplicate / Both picker next to Print. */
+  copies?: PrintCopies;
+  onCopiesChange?: (copies: PrintCopies) => void;
 };
+
+export type PrintCopies = "original" | "duplicate" | "both";
 
 const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
   disabled = false,
   size = "md",
   showPrintButton = false,
+  copies,
+  onCopiesChange,
 }) => {
   const buttonSizeClass =
     size === "sm" ? "px-3 py-2 text-xs rounded-xl" : "px-4 py-2 text-sm rounded-2xl";
@@ -25,6 +32,18 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">
       <div className="flex flex-wrap gap-3 sm:justify-end">
+        {showPrintButton && copies && onCopiesChange ? (
+          <select
+            value={copies}
+            onChange={(event) => onCopiesChange(event.target.value as PrintCopies)}
+            aria-label="Which copy to print"
+            className={`${buttonSizeClass} border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm`}
+          >
+            <option value="both">Print: Original + Duplicate</option>
+            <option value="original">Print: Original only</option>
+            <option value="duplicate">Print: Duplicate only</option>
+          </select>
+        ) : null}
         {showPrintButton ? (
           <button
             type="button"

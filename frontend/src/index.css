@@ -202,6 +202,12 @@ h1, h2, h3 {
         display: block !important;
     }
 
+    /* Beats .print-page's display:block (higher specificity) so a copy the
+       user chose not to print is dropped entirely. */
+    .print-pages .print-page.print-skip {
+        display: none !important;
+    }
+
     .print-page:last-child {
         break-after: auto !important;
         page-break-after: auto !important;

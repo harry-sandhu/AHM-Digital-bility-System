@@ -60,7 +60,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
             disabled={!hasDocumentData}
             size="sm"
           />
-          {role === "superadmin" ? (
+          {role === "superadmin" || status !== "expired" ? (
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -69,6 +69,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
               >
                 Edit Bilty
               </button>
+              {role === "superadmin" ? (
               <button
                 type="button"
                 onClick={() => onDelete?.(bilty)}
@@ -76,6 +77,7 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
               >
                 Delete Bilty
               </button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -103,6 +105,28 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
             {bilty.formData?.from || "—"} → {bilty.formData?.to || "—"}
           </p>
         </div>
+        {bilty.freightAdjustment ? (
+          <div
+            className={`rounded-2xl px-4 py-3 shadow-sm ring-1 md:col-span-2 ${
+              bilty.freightAdjustment > 0
+                ? "bg-amber-50 text-amber-800 ring-amber-100"
+                : "bg-success-50 text-success-700 ring-success-100"
+            }`}
+          >
+            <p className="font-semibold">
+              {bilty.freightAdjustment > 0
+                ? `Extra ₹${bilty.freightAdjustment} for higher freight tier`
+                : `Discount ₹${Math.abs(bilty.freightAdjustment)} for lower freight tier`}
+            </p>
+            <p className="mt-1 text-xs">
+              {bilty.freightAdjustment > 0
+                ? bilty.extraPaid && bilty.extraPaid >= bilty.freightAdjustment
+                  ? "Paid."
+                  : "Payment pending."
+                : "Applied to your net bilty charge."}
+            </p>
+          </div>
+        ) : null}
         {bilty.expiresAt ? (
           <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
             <p className="font-semibold text-slate-900">Deadline</p>

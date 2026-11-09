@@ -94,7 +94,7 @@ const AppRoutes = () => {
       <Route
         path="/bilty/edit/:id"
         element={
-          <ProtectedRoute allowedRoles={["superadmin"]}>
+          <ProtectedRoute>
             <BiltyEditPage />
           </ProtectedRoute>
         }

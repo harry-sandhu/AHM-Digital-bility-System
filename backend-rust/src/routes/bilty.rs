@@ -24,6 +24,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/generate", get(handlers::generate_bilty))
         .route("/my", get(handlers::get_my_bilty))
         .route("/all", get(handlers::get_all_bilty))
+        .route("/suggestions/packing", get(handlers::get_packing_suggestions))
         .route(
             "/extract-bill",
             post(handlers::extract_bill_data).layer(

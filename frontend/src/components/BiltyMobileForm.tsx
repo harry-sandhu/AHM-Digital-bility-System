@@ -1,6 +1,7 @@
 import React from "react";
 import type { BiltyFormState } from "../types/biltyForm";
-import SavedContactsPicker from "./SavedContactsPicker";
+import AutoSuggest from "./AutoSuggest";
+import type { Suggestion } from "../utils/suggest";
 
 type ChangeHandler = (
   e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -12,6 +13,12 @@ type BiltyMobileFormProps = {
   freightReadOnly?: boolean;
   onSelectConsignor?: (address: string, gstin: string) => void;
   onSelectConsignee?: (address: string, gstin: string) => void;
+  onSelectPacking?: (value: string) => void;
+  suggestions?: {
+    consignor: Suggestion[];
+    consignee: Suggestion[];
+    packing: Suggestion[];
+  };
 };
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -33,7 +40,8 @@ const Field: React.FC<{
   readOnly?: boolean;
   inputMode?: React.InputHTMLAttributes<HTMLInputElement>["inputMode"];
   placeholder?: string;
-}> = ({ label, name, value, onChange, type = "text", readOnly = false, inputMode, placeholder }) => {
+  noAutofill?: boolean;
+}> = ({ label, name, value, onChange, type = "text", readOnly = false, inputMode, placeholder, noAutofill = false }) => {
   const id = `mobile-${name}`;
 
   return (
@@ -49,6 +57,9 @@ const Field: React.FC<{
         disabled={readOnly && !onChange}
         inputMode={inputMode}
         placeholder={placeholder}
+        autoComplete={noAutofill ? "off" : undefined}
+        autoCorrect={noAutofill ? "off" : undefined}
+        spellCheck={noAutofill ? false : undefined}
         className={fieldClassName}
       />
     </label>
@@ -116,6 +127,8 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
   freightReadOnly = false,
   onSelectConsignor,
   onSelectConsignee,
+  onSelectPacking,
+  suggestions,
 }) => {
   return (
     <div className="grid gap-4">
@@ -163,22 +176,24 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
       </Section>
 
       <Section title="Consignor">
-        <div className="relative">
-          {onChange && onSelectConsignor ? (
-            <SavedContactsPicker kind="consignor" onSelect={onSelectConsignor} />
-          ) : null}
+        <AutoSuggest
+          query={formData.consignorAddress}
+          suggestions={onChange && onSelectConsignor ? suggestions?.consignor ?? [] : []}
+          onPick={(suggestion) => onSelectConsignor?.(suggestion.text, suggestion.sub || "")}
+        >
           <Area label="Name & Address" name="consignorAddress" value={formData.consignorAddress} onChange={onChange} rows={3} />
-        </div>
+        </AutoSuggest>
         <Field label="GSTIN" name="consignorGstin" value={formData.consignorGstin} onChange={onChange} />
       </Section>
 
       <Section title="Consignee">
-        <div className="relative">
-          {onChange && onSelectConsignee ? (
-            <SavedContactsPicker kind="consignee" onSelect={onSelectConsignee} />
-          ) : null}
+        <AutoSuggest
+          query={formData.consigneeAddress}
+          suggestions={onChange && onSelectConsignee ? suggestions?.consignee ?? [] : []}
+          onPick={(suggestion) => onSelectConsignee?.(suggestion.text, suggestion.sub || "")}
+        >
           <Area label="Name & Address" name="consigneeAddress" value={formData.consigneeAddress} onChange={onChange} rows={3} />
-        </div>
+        </AutoSuggest>
         <Field label="GSTIN" name="consigneeGstin" value={formData.consigneeGstin} onChange={onChange} />
       </Section>
 
@@ -190,8 +205,14 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
       </Section>
 
       <Section title="Goods">
-        <Area label="Method Of Packing" name="methodOfPacking" value={formData.methodOfPacking} onChange={onChange} rows={2} />
-        <Field label="No. of Packages" name="packages" value={formData.packages} onChange={onChange} />
+        <AutoSuggest
+          query={formData.methodOfPacking}
+          suggestions={onChange && onSelectPacking ? suggestions?.packing ?? [] : []}
+          onPick={(suggestion) => onSelectPacking?.(suggestion.text)}
+        >
+          <Area label="Method Of Packing" name="methodOfPacking" value={formData.methodOfPacking} onChange={onChange} rows={2} />
+        </AutoSuggest>
+        <Field label="No. of Packages" name="packages" value={formData.packages} onChange={onChange} noAutofill />
         <Area label="Description" name="description" value={formData.description} onChange={onChange} rows={3} />
         <div className="grid grid-cols-3 gap-3">
           <Field label="Actual Wt." name="actualWt" value={formData.actualWt} onChange={onChange} />
