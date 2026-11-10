@@ -14,10 +14,12 @@ type BiltyMobileFormProps = {
   onSelectConsignor?: (address: string, gstin: string) => void;
   onSelectConsignee?: (address: string, gstin: string) => void;
   onSelectPacking?: (value: string) => void;
+  onSelectDelivery?: (value: string) => void;
   suggestions?: {
     consignor: Suggestion[];
     consignee: Suggestion[];
     packing: Suggestion[];
+    delivery: Suggestion[];
   };
 };
 
@@ -128,6 +130,7 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
   onSelectConsignor,
   onSelectConsignee,
   onSelectPacking,
+  onSelectDelivery,
   suggestions,
 }) => {
   return (
@@ -142,11 +145,17 @@ const BiltyMobileForm: React.FC<BiltyMobileFormProps> = ({
 
       <Section title="Lorry & Contact">
         <Field label="Lorry No." name="lorryNo" value={formData.lorryNo} onChange={onChange} placeholder="Lorry number" />
-        <Field label="Phone No." name="phoneNo" value={formData.phoneNo} onChange={onChange} inputMode="tel" placeholder="Phone number" />
+        <Field label="Consignee Phone No." name="phoneNo" value={formData.phoneNo} onChange={onChange} inputMode="tel" placeholder="Phone number" />
       </Section>
 
       <Section title="Delivery Address">
-        <Area label="Delivery Address" name="deliveryAddress" value={formData.deliveryAddress} onChange={onChange} rows={3} />
+        <AutoSuggest
+          query={formData.deliveryAddress}
+          suggestions={onChange && onSelectDelivery ? suggestions?.delivery ?? [] : []}
+          onPick={(suggestion) => onSelectDelivery?.(suggestion.text)}
+        >
+          <Area label="Delivery Address" name="deliveryAddress" value={formData.deliveryAddress} onChange={onChange} rows={3} />
+        </AutoSuggest>
       </Section>
 
       <Section title="Invoice">

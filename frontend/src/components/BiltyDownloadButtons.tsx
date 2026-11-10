@@ -7,6 +7,8 @@ type BiltyDownloadButtonsProps = {
   /** When set, shows an Original / Duplicate / Both picker next to Print. */
   copies?: PrintCopies;
   onCopiesChange?: (copies: PrintCopies) => void;
+  /** Runs before the print dialog; return false to cancel the print. */
+  onBeforePrint?: () => Promise<boolean> | boolean;
 };
 
 export type PrintCopies = "original" | "duplicate" | "both";
@@ -17,12 +19,17 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
   showPrintButton = false,
   copies,
   onCopiesChange,
+  onBeforePrint,
 }) => {
   const buttonSizeClass =
     size === "sm" ? "px-3 py-2 text-xs rounded-xl" : "px-4 py-2 text-sm rounded-2xl";
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (disabled) {
+      return;
+    }
+
+    if (onBeforePrint && !(await onBeforePrint())) {
       return;
     }
 

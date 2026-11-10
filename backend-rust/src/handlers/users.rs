@@ -30,7 +30,7 @@ pub async fn get_all_users(
     State(state): State<Arc<AppState>>,
     current_user: UserRecord,
 ) -> Result<impl IntoResponse, AppError> {
-    require_role(&current_user, &[Role::Superadmin, Role::Admin])?;
+    require_role(&current_user, &[Role::Superadmin])?;
 
     let cursor = state
         .db

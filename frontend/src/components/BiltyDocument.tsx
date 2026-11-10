@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react";
 import type { CSSProperties, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import type { BiltyFormState } from "../types/biltyForm";
 import AutoSuggest from "./AutoSuggest";
@@ -5,8 +6,11 @@ import type { Suggestion } from "../utils/suggest";
 
 const pct = (value: number) => `${value * 100}%`;
 
+/** Extra header height (phone line + larger two-line bank/GST block) pushes every box below it down by this much. */
+const HEADER_SHIFT = 0.047;
+
 const boxStyle = (top: number, left: number, width: number, height: number): CSSProperties => ({
-    top: pct(top),
+    top: pct(top + HEADER_SHIFT),
     left: pct(left),
     width: pct(width),
     height: pct(height),
@@ -185,37 +189,21 @@ const formatStaticDate = (value: unknown) => {
     return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleDateString("en-GB");
 };
 
-const DateInputIcon: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-    <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        className={`no-print pointer-events-none absolute top-1/2 -translate-y-1/2 text-black ${
-            compact ? "right-[0.1em] h-[0.9em] w-[0.9em]" : "right-[0.25em] h-[1.1em] w-[1.1em]"
-        }`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-    >
-        <rect x="3" y="4.5" width="18" height="16" rx="2" />
-        <path d="M16 2.5v4M8 2.5v4M3 9h18" />
-    </svg>
-);
-
 const DateInput: React.FC<
     InputHTMLAttributes<HTMLInputElement> & { bordered?: boolean; staticRender?: boolean; compact?: boolean }
 > = ({ className = "", bordered = false, staticRender = false, compact = false, value, style, ...props }) => {
-    const paddingRightClass = compact ? "pr-[1.1em]" : "pr-[1.55em]";
     const fontSizeStyle: CSSProperties = compact ? { fontSize: "0.78em", ...style } : { ...style };
 
     if (staticRender) {
         return (
             <div
                 className={`relative flex w-full min-w-0 items-center overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent pl-[0.2em] pr-[0.2em] text-[1.5em] leading-tight text-black ${className}`}
-                style={fontSizeStyle}
+                // Printed/static dates have no picker icon to make room for, so
+                // they can match the size of every other value.
+                style={{ ...fontSizeStyle, fontSize: "clamp(9px, 1.64cqw, 18px)" }}
                 title={formatStaticDate(value)}
             >
-                <DateInputIcon compact={compact} />
-                <span className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                <span className="min-w-0 max-w-full overflow-hidden whitespace-nowrap">
                     {formatStaticDate(value) || " "}
                 </span>
             </div>
@@ -239,6 +227,8 @@ type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & {
     staticRender?: boolean;
     density?: "narrow" | "compact" | "normal" | "wide";
     centerWhenShort?: boolean;
+    /** false = never break inside a word; shrink the text instead (narrow columns like From/To). */
+    breakWords?: boolean;
 };
 
 const estimateRows = (value: unknown, maxRows: number, charsPerLine = 22): number => {
@@ -248,6 +238,9 @@ const estimateRows = (value: unknown, maxRows: number, charsPerLine = 22): numbe
     return Math.min(Math.max(needed, 1), maxRows);
 };
 
+/** Smallest the text may shrink to (fraction of its normal size) before it is allowed to clip. */
+const MIN_FIT_SCALE = 0.4;
+
 const TextAreaField: React.FC<TextAreaFieldProps> = ({
     className = "",
     bordered = false,
@@ -255,26 +248,65 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
     staticRender = false,
     density = "normal",
     centerWhenShort = false,
+    breakWords = true,
     value,
     ...props
 }) => {
     const autoFontSize = tieredFontSize(value, MULTILINE_TIERS[density]);
+    const baseFontSize = String(style?.fontSize ?? autoFontSize);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Long text shrinks to fit its box instead of being cropped: the font
+    // size is `base * --fit`, and --fit drops from 1 until nothing overflows
+    // (or MIN_FIT_SCALE is reached). Re-runs when the text or the box size
+    // changes (the base size itself scales with the page width).
+    const text = normalizeDisplayValue(value);
+    useLayoutEffect(() => {
+        const wrapper = wrapperRef.current;
+        if (!wrapper) return;
+
+        const overflows = () => {
+            const target = staticRender ? wrapper : textareaRef.current;
+            return target
+                ? target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth
+                : false;
+        };
+
+        const fit = () => {
+            let scale = 1;
+            wrapper.style.setProperty("--fit", "1");
+            while (overflows() && scale > MIN_FIT_SCALE) {
+                scale = Math.round((scale - 0.04) * 100) / 100;
+                wrapper.style.setProperty("--fit", String(scale));
+            }
+        };
+
+        fit();
+        const observer = new ResizeObserver(fit);
+        observer.observe(wrapper);
+        // Web fonts load after first paint and change the text's width.
+        void document.fonts?.ready.then(fit);
+        return () => observer.disconnect();
+    }, [text, staticRender, baseFontSize]);
+
     const sharedStyle: CSSProperties = {
         minHeight: 0,
-        overflowWrap: "anywhere",
-        fontSize: autoFontSize,
+        overflowWrap: breakWords ? "anywhere" : "normal",
         ...style,
+        fontSize: `calc(var(--fit, 1) * ${baseFontSize})`,
     };
 
     if (staticRender) {
         return (
             <div
+                ref={wrapperRef}
                 className={`w-full min-w-0 flex-1 overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent px-[0.2em] py-[0.1em] leading-tight text-black ${className}`}
                 style={sharedStyle}
-                title={normalizeDisplayValue(value)}
+                title={text}
             >
-                <span className="block max-h-full min-w-0 max-w-full overflow-hidden whitespace-pre-wrap break-words">
-                    {normalizeDisplayValue(value) || "\u00A0"}
+                <span className={`block min-w-0 max-w-full whitespace-pre-wrap ${breakWords ? "break-words" : "break-normal"}`}>
+                    {text || "\u00A0"}
                 </span>
             </div>
         );
@@ -284,11 +316,13 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
         const effectiveRows = estimateRows(value, Number(props.rows) || 4);
         return (
             <div
+                ref={wrapperRef}
                 className={`flex w-full min-w-0 overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent ${className}`}
                 style={sharedStyle}
             >
                 <textarea
                     {...props}
+                    ref={textareaRef}
                     rows={effectiveRows}
                     value={value}
                     className="min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
@@ -299,13 +333,16 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({
 
     return (
         <div
+            ref={wrapperRef}
             className={`flex w-full min-w-0 flex-1 overflow-hidden ${bordered ? "border border-black" : "border-0"} bg-transparent ${className}`}
             style={sharedStyle}
         >
             <textarea
                 {...props}
+                ref={textareaRef}
                 value={value}
-                className="h-full min-h-0 w-full min-w-0 resize-none border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
+                style={{ overflowWrap: breakWords ? "anywhere" : "normal" }}
+                className="h-full min-h-0 w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent px-[0.2em] py-[0.1em] text-inherit leading-tight outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500 print:ring-0"
             />
         </div>
     );
@@ -322,10 +359,12 @@ type BiltyDocumentProps = {
     onSelectConsignor?: (address: string, gstin: string) => void;
     onSelectConsignee?: (address: string, gstin: string) => void;
     onSelectPacking?: (value: string) => void;
+    onSelectDelivery?: (value: string) => void;
     suggestions?: {
         consignor: Suggestion[];
         consignee: Suggestion[];
         packing: Suggestion[];
+        delivery: Suggestion[];
     };
 };
 
@@ -340,6 +379,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
     onSelectConsignor,
     onSelectConsignee,
     onSelectPacking,
+    onSelectDelivery,
     suggestions,
 }) => {
     const editable = Boolean(onChange);
@@ -390,16 +430,27 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 Rampur-Bilaspur Road, Vill. &amp; Post Bhot - 244901 (Uttar Pradesh)
             </div>
             <div
-                className="absolute w-full px-[5%] text-center text-black"
-                style={{ top: pct(0.081), fontSize: "clamp(8px, 1cqw, 12px)" }}
+                className="absolute w-full px-[5%] text-center font-semibold text-black"
+                style={{ top: pct(0.081), fontSize: "clamp(10px, 1.3cqw, 18px)" }}
             >
-                GSTIN: 09CPGPS1323P1ZD | PAN No: CPGPS1323P | Email: ahmtptservice@gmail.com | A/c No: 971000294002004 | I.F.S. Code: UTIB0000795 | Branch: Axis Bank,
-                Rampur
+                M.: 96909-53645, 8077931418
             </div>
-            <div className="absolute left-[5%] w-[90%] border-b border-black" style={{ top: pct(0.103) }} />
+            <div
+                className="absolute w-full px-[5%] text-center leading-tight text-black"
+                style={{ top: pct(0.104), fontSize: "clamp(8px, 1.2cqw, 16px)" }}
+            >
+                GSTIN: 09CPGPS1323P1ZD &nbsp;|&nbsp; PAN No: CPGPS1323P &nbsp;|&nbsp; Email: ahmtptservice@gmail.com
+            </div>
+            <div
+                className="absolute w-full px-[5%] text-center leading-tight text-black"
+                style={{ top: pct(0.127), fontSize: "clamp(8px, 1.2cqw, 16px)" }}
+            >
+                A/c No: 918020094902004 &nbsp;|&nbsp; I.F.S. Code: UTIB0000795 &nbsp;|&nbsp; Branch: Axis Bank, Rampur
+            </div>
+            <div className="absolute left-[5%] w-[90%] border-b border-black" style={{ top: pct(0.103 + HEADER_SHIFT) }} />
 
             {/* Lorry / Invoice / Phone */}
-            <PositionedBox style={boxStyle(0.112, 0.05, 0.25, 0.052)} label="Lorry No." className="justify-center">
+            <PositionedBox style={boxStyle(0.112, 0.05, 0.22, 0.052)} label="Lorry No." className="justify-center">
                 <TextInput
                     name="lorryNo"
                     value={formData.lorryNo}
@@ -413,13 +464,13 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 />
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.112, 0.31, 0.46, 0.052)}>
+            <PositionedBox style={boxStyle(0.112, 0.27, 0.40, 0.052)}>
                 <div className="flex h-full items-center justify-center text-center text-[1.9em] font-semibold leading-tight">
                     AT OWNER&apos;S RISK / FREIGHT BROKER
                 </div>
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.112, 0.78, 0.17, 0.052)} label="Phone No." className="justify-center">
+            <PositionedBox style={boxStyle(0.112, 0.67, 0.28, 0.052)} label="Consignee Phone No." className="justify-center">
                 <TextInput
                     name="phoneNo"
                     value={formData.phoneNo}
@@ -435,17 +486,24 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
             {/* Delivery 4:1 Insurance */}
             <PositionedBox style={boxStyle(0.174, 0.05, 0.58, 0.095)} label="Delivery Address">
-                <TextAreaField
-                    name="deliveryAddress"
-                    density="wide"
-                    value={formData.deliveryAddress}
-                    onChange={onChange}
-                    readOnly={!editable}
-                    staticRender={staticRender}
-                    placeholder="Delivery Address"
-                    rows={4}
-                    style={{ fontSize: UNIFORM_VALUE_SIZE }}
-                />
+                <AutoSuggest
+                    className="flex min-h-0 flex-1 flex-col"
+                    query={formData.deliveryAddress}
+                    suggestions={editable && onSelectDelivery ? suggestions?.delivery ?? [] : []}
+                    onPick={(suggestion) => onSelectDelivery?.(suggestion.text)}
+                >
+                    <TextAreaField
+                        name="deliveryAddress"
+                        density="wide"
+                        value={formData.deliveryAddress}
+                        onChange={onChange}
+                        readOnly={!editable}
+                        staticRender={staticRender}
+                        placeholder="Delivery Address"
+                        rows={4}
+                        style={{ fontSize: UNIFORM_VALUE_SIZE }}
+                    />
+                </AutoSuggest>
             </PositionedBox>
 
             <PositionedBox style={boxStyle(0.174, 0.64, 0.31, 0.095)} label="Insurance" labelClassName={SECTION_LABEL_CLASS}>
@@ -510,8 +568,8 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             </PositionedBox>
 
             {/* Consignment Note */}
-            <PositionedBox style={boxStyle(0.279, 0.05, 0.20, 0.070)} label="Consignment Note No." labelClassName={SECTION_LABEL_CLASS}>
-                <div className="grid min-h-0 flex-1 grid-cols-[0.75fr_0.65fr] gap-1">
+            <PositionedBox style={boxStyle(0.279, 0.05, 0.27, 0.070)} label="Consignment Note No." labelClassName={SECTION_LABEL_CLASS}>
+                <div className="grid min-h-0 flex-1 grid-cols-[0.42fr_0.58fr] gap-1">
                     <TextInput
                         name="consignmentNo"
                         value={formData.consignmentNo}
@@ -529,13 +587,13 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "clamp(6px, 1.05cqw, 11.5px)" }}
+                        style={{ fontSize: "clamp(9px, 1.4cqw, 15px)" }}
                     />
                 </div>
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.279, 0.25, 0.38, 0.070)} label="Invoice No. & Date" labelClassName={SECTION_LABEL_CLASS}>
-                <div className="grid min-h-0 flex-1 grid-cols-[1fr_0.42fr] gap-1">
+            <PositionedBox style={boxStyle(0.279, 0.32, 0.33, 0.070)} label="Invoice No. & Date" labelClassName={SECTION_LABEL_CLASS}>
+                <div className="grid min-h-0 flex-1 grid-cols-[1fr_0.55fr] gap-1">
                     <TextInput
                         name="invoiceNoDate"
                         value={formData.invoiceNoDate}
@@ -553,12 +611,12 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         readOnly={!editable}
                         staticRender={staticRender}
                         compact
-                        style={{ fontSize: "clamp(8px, 1.45cqw, 16px)" }}
+                        style={{ fontSize: "clamp(9px, 1.4cqw, 15px)" }}
                     />
                 </div>
             </PositionedBox>
 
-            <PositionedBox style={boxStyle(0.279, 0.63, 0.32, 0.070)} label="GST Paid By" className="justify-start" labelClassName={SECTION_LABEL_CLASS}>
+            <PositionedBox style={boxStyle(0.279, 0.65, 0.30, 0.070)} label="GST Paid By" className="justify-start" labelClassName={SECTION_LABEL_CLASS}>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 leading-tight" style={{ fontSize: UNIFORM_VALUE_SIZE }}>
                     {gstPaidByOptions.map(option =>
                         editable ? (
@@ -586,7 +644,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
             {/* Consignor / Consignee / vertical From / To */}
             <div
                 className="absolute grid overflow-hidden border border-black bg-white"
-                style={{ ...boxStyle(0.359, 0.05, 0.9, 0.115), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr" }}
+                style={{ ...boxStyle(0.359, 0.05, 0.9, 0.115), gridTemplateColumns: "1.35fr 1.35fr 0.45fr 0.45fr", gridTemplateRows: "minmax(0, 1fr)" }}
             >
                 <div className="relative flex min-w-0 flex-col border-r border-black p-[0.35%]">
                     <label className={`block shrink-0 text-[1.6em] leading-tight ${SECTION_LABEL_CLASS}`}>
@@ -594,7 +652,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     </label>
                     <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <AutoSuggest
-                            className="flex min-w-0 flex-col"
+                            className="flex min-h-0 flex-1 flex-col"
                             query={formData.consignorAddress}
                             suggestions={editable && onSelectConsignor ? suggestions?.consignor ?? [] : []}
                             onPick={(suggestion) => onSelectConsignor?.(suggestion.text, suggestion.sub || "")}
@@ -602,7 +660,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             <TextAreaField
                                 name="consignorAddress"
                                 density="wide"
-                                centerWhenShort
                                 value={formData.consignorAddress}
                                 onChange={onChange}
                                 readOnly={!editable}
@@ -630,7 +687,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                     </label>
                     <div className="flex min-h-0 flex-1 flex-col justify-start">
                         <AutoSuggest
-                            className="flex min-w-0 flex-col"
+                            className="flex min-h-0 flex-1 flex-col"
                             query={formData.consigneeAddress}
                             suggestions={editable && onSelectConsignee ? suggestions?.consignee ?? [] : []}
                             onPick={(suggestion) => onSelectConsignee?.(suggestion.text, suggestion.sub || "")}
@@ -638,7 +695,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                             <TextAreaField
                                 name="consigneeAddress"
                                 density="wide"
-                                centerWhenShort
                                 value={formData.consigneeAddress}
                                 onChange={onChange}
                                 readOnly={!editable}
@@ -666,6 +722,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         <TextAreaField
                             name="from"
                             density="normal"
+                            breakWords={false}
                             value={formData.from}
                             onChange={onChange}
                             readOnly={!editable}
@@ -682,6 +739,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                         <TextAreaField
                             name="to"
                             density="normal"
+                            breakWords={false}
                             value={formData.to}
                             onChange={onChange}
                             readOnly={!editable}
@@ -699,10 +757,11 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 style={{
                     ...boxStyle(0.484, 0.05, 0.9, 0.238),
                     gridTemplateColumns: "1.25fr 1.7fr 2.15fr 1.45fr",
+                    gridTemplateRows: "minmax(0, 1fr)",
                 }}
             >
                 {/* Method of packing + number of packages */}
-                <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
+                <div className="grid min-w-0 grid-rows-[minmax(0,1.5fr)_minmax(0,0.5fr)] border-r border-black">
                     <div className="flex min-w-0 flex-col border-b border-black p-[0.45%]">
                         <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Method Of Packing</label>
                         <div className="flex min-h-0 flex-1 flex-col justify-start">
@@ -735,7 +794,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 autoCorrect="off"
                                 spellCheck={false}
                                 density="wide"
-                                centerWhenShort
                                 value={formData.packages}
                                 onChange={onChange}
                                 readOnly={!editable}
@@ -767,7 +825,7 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                 </div>
 
                 {/* Weight/Rate upper + Basis of Booking lower */}
-                <div className="grid min-w-0 grid-rows-[1.5fr_0.5fr] border-r border-black">
+                <div className="grid min-w-0 grid-rows-[minmax(0,1.1fr)_minmax(0,0.9fr)] border-r border-black">
                     <div className="grid min-w-0 grid-cols-3 border-b border-black">
                         <div className="flex min-w-0 flex-col border-r border-black p-[0.35%]">
                             <label className={`min-h-[2.5em] leading-tight text-center text-[1.6em] ${SECTION_LABEL_CLASS}`}>Actual Wt.</label>
@@ -775,7 +833,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 <TextAreaField
                                     name="actualWt"
                                     density="narrow"
-                                    centerWhenShort
                                     value={formData.actualWt}
                                     onChange={onChange}
                                     readOnly={!editable}
@@ -792,7 +849,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 <TextAreaField
                                     name="chargedWt"
                                     density="narrow"
-                                    centerWhenShort
                                     value={formData.chargedWt}
                                     onChange={onChange}
                                     readOnly={!editable}
@@ -809,7 +865,6 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
                                 <TextAreaField
                                     name="rate"
                                     density="narrow"
-                                    centerWhenShort
                                     value={formData.rate}
                                     onChange={onChange}
                                     readOnly={!editable}
@@ -930,12 +985,11 @@ const BiltyDocument: React.FC<BiltyDocumentProps> = ({
 
             {/* Signature / Remarks */}
             <PositionedBox style={boxStyle(0.789, 0.05, 0.9, 0.091)} label="Signature or Remarks" labelClassName={SECTION_LABEL_CLASS}>
-                <div className="relative flex min-h-0 flex-1 flex-col justify-center">
+                <div className="relative flex min-h-0 flex-1 flex-col justify-start">
                     <TextAreaField
                         className="pr-[52%]"
                         name="remarks"
                         density="normal"
-                        centerWhenShort
                         value={formData.remarks}
                         onChange={onChange}
                         readOnly={!editable}

@@ -30,9 +30,6 @@ export const createBilty = (data: {
     }
   );
 
-export const getPackingSuggestions = () =>
-  axiosInstance.get<string[]>("/bilty/suggestions/packing");
-
 export const getMyBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/my");
 
 export const getAllBilties = () => axiosInstance.get<BiltyRecord[]>("/bilty/all");
@@ -55,3 +52,16 @@ export const extractBillData = (file: File) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+export const markBiltyPrinted = (id: string) =>
+  axiosInstance.post<{ printedAt: string }>(`/bilty/${id}/print`);
+
+export interface BiltyRevision {
+  _id: string;
+  formData: Record<string, string>;
+  replacedAt: string | null;
+  changedByName: string;
+}
+
+export const getBiltyRevisions = (id: string) =>
+  axiosInstance.get<BiltyRevision[]>(`/bilty/${id}/revisions`);

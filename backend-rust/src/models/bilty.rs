@@ -44,6 +44,10 @@ pub struct Bilty {
     /// Highest extra charge the user has already confirmed/paid.
     #[serde(rename = "extraPaid", default)]
     pub extra_paid: Option<f64>,
+    /// Set the first time the bilty is printed. After this only a
+    /// superadmin may change it (and each change keeps a backup).
+    #[serde(rename = "printedAt", default)]
+    pub printed_at: Option<BsonDateTime>,
     #[serde(rename = "createdAt", default)]
     pub created_at: Option<BsonDateTime>,
 }

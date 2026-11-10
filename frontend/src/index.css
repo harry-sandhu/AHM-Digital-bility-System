@@ -38,8 +38,31 @@ h1, h2, h3 {
     display: block;
 }
 
+/* The printed Original/Duplicate copies are laid out at real A4 size but kept
+   off-screen on screen (not display:none), so the text-fitting code can
+   measure them exactly as they will print. */
 .print-only-copy {
-    display: none;
+    position: fixed;
+    left: -99999px;
+    top: 0;
+    width: 210mm;
+    height: 297mm;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Phones use the stacked mobile form; the document layout still has to
+   exist (off-screen) so it can be printed. */
+@media (max-width: 1023.98px) {
+    .print-pages {
+        position: fixed;
+        left: -99999px;
+        top: 0;
+        width: 210mm;
+        min-width: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
 }
 
 @media print {
@@ -124,6 +147,7 @@ h1, h2, h3 {
         position: relative !important;
         top: 0 !important;
         left: 0 !important;
+        visibility: visible !important;
 
         display: block !important;
 
@@ -200,6 +224,10 @@ h1, h2, h3 {
 
     .print-only-copy {
         display: block !important;
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        visibility: visible !important;
     }
 
     /* Beats .print-page's display:block (higher specificity) so a copy the

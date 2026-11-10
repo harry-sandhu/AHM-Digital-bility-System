@@ -37,6 +37,10 @@ async fn main() -> anyhow::Result<()> {
     db::ensure_indexes(&db).await?;
     tracing::info!("MongoDB connected");
 
+    if let Err(err) = handlers::contacts::backfill_from_bilties(&db).await {
+        tracing::warn!(error = %err, "suggestion backfill failed (will retry next start)");
+    }
+
     seeder::seed_superadmin(
         &db,
         config.superadmin_phone.as_deref(),

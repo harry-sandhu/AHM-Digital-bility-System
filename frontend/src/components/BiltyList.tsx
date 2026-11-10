@@ -28,6 +28,11 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
       ? "expired"
       : "draft");
 
+  // Before printing the owner can edit; after printing only a superadmin
+  // can; past the deadline nobody can.
+  const canEdit =
+    status !== "expired" && (role === "superadmin" || !bilty.printedAt);
+
   return (
     <div className="rounded-card border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -60,23 +65,30 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
             disabled={!hasDocumentData}
             size="sm"
           />
-          {role === "superadmin" || status !== "expired" ? (
+          {bilty.printedAt ? (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              Printed
+            </span>
+          ) : null}
+          {canEdit || role === "superadmin" ? (
             <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
-                className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-semibold text-accent-700"
-              >
-                Edit Bilty
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
+                  className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-semibold text-accent-700"
+                >
+                  Edit Bilty
+                </button>
+              ) : null}
               {role === "superadmin" ? (
-              <button
-                type="button"
-                onClick={() => onDelete?.(bilty)}
-                className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700"
-              >
-                Delete Bilty
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(bilty)}
+                  className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700"
+                >
+                  Delete Bilty
+                </button>
               ) : null}
             </div>
           ) : null}

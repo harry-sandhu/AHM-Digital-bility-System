@@ -10,6 +10,7 @@ export interface BiltyRecord {
   paymentPaidAt?: string;
   paymentExpiresAt?: string;
   expiresAt?: string;
+  printedAt?: string;
   createdBy?: {
     _id?: string;
     name: string;

@@ -4,6 +4,8 @@ export type StoredBiltyDraft = {
   biltyId: string;
   formData: BiltyFormState;
   hasSavedBilty: boolean;
+  /** JSON of the form as last saved (or as first reserved) — drives the Save button. */
+  savedSnapshot?: string;
   updatedAt: string;
   expiresAt?: string;
 };

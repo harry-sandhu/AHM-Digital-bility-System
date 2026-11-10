@@ -4,14 +4,15 @@ import {
   createBilty,
   extractBillData,
   getBilty,
-  getPackingSuggestions,
+  markBiltyPrinted,
   requestBiltyNumber,
 } from "../api/biltyApi";
-import { getConsigneeContacts, getConsignorContacts } from "../api/contactsApi";
+import { getContacts } from "../api/contactsApi";
 import type { SavedContact } from "../api/contactsApi";
 import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons, { type PrintCopies } from "./BiltyDownloadButtons";
 import BiltyMobileForm from "./BiltyMobileForm";
+import BiltyRevisionsModal from "./BiltyRevisionsModal";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
@@ -74,11 +75,18 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   const [hasSavedBilty, setHasSavedBilty] = useState(false);
   const [isScanningBill, setIsScanningBill] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [printedAt, setPrintedAt] = useState<string | null>(null);
+  // The form as last saved. Save is only clickable while the form differs
+  // from this. `null` = unknown (old draft): fall back to "saved before?".
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [baselinePending, setBaselinePending] = useState(false);
+  const [showRevisions, setShowRevisions] = useState(false);
   const [printCopies, setPrintCopies] = useState<PrintCopies>("both");
   const [extraPrompt, setExtraPrompt] = useState<ExtraPaymentPrompt | null>(null);
   const [consignors, setConsignors] = useState<SavedContact[]>([]);
   const [consignees, setConsignees] = useState<SavedContact[]>([]);
-  const [packingOptions, setPackingOptions] = useState<string[]>([]);
+  const [packingOptions, setPackingOptions] = useState<SavedContact[]>([]);
+  const [deliveryOptions, setDeliveryOptions] = useState<SavedContact[]>([]);
   const billFileInputRef = useRef<HTMLInputElement>(null);
   const [now, setNow] = useState(() => Date.now());
   const [deadlineAt, setDeadlineAt] = useState<string | null>(
@@ -101,14 +109,17 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   useEffect(() => {
     let isMounted = true;
 
-    getConsignorContacts()
+    getContacts("consignor")
       .then((response) => isMounted && setConsignors(response.data))
       .catch(() => undefined);
-    getConsigneeContacts()
+    getContacts("consignee")
       .then((response) => isMounted && setConsignees(response.data))
       .catch(() => undefined);
-    getPackingSuggestions()
+    getContacts("packing")
       .then((response) => isMounted && setPackingOptions(response.data))
+      .catch(() => undefined);
+    getContacts("delivery")
+      .then((response) => isMounted && setDeliveryOptions(response.data))
       .catch(() => undefined);
 
     return () => {
@@ -126,9 +137,10 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         text: contact.address,
         sub: contact.gstin || undefined,
       })),
-      packing: packingOptions.map((value): Suggestion => ({ text: value })),
+      packing: packingOptions.map((item): Suggestion => ({ text: item.address })),
+      delivery: deliveryOptions.map((item): Suggestion => ({ text: item.address })),
     }),
-    [consignors, consignees, packingOptions]
+    [consignors, consignees, packingOptions, deliveryOptions]
   );
 
   useEffect(() => {
@@ -160,11 +172,14 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
         setBiltyId(response.data._id);
         setDeadlineAt(response.data.expiresAt || null);
-        setFormData({
+        setPrintedAt(response.data.printedAt || null);
+        const loaded = {
           ...normalizeBiltyFormData(response.data.formData),
           biltyNumber: response.data.biltyNumber,
           consignmentNo: String(response.data.consignmentNo ?? ""),
-        });
+        };
+        setFormData(loaded);
+        setSavedSnapshot(JSON.stringify(loaded));
         setHasSavedBilty(true);
       } catch (err: any) {
         if (isMounted) {
@@ -213,7 +228,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         }
 
         setBiltyId(storedDraft.biltyId);
-        setFormData({
+        setFormData(calculateBiltyTotals({
           ...initialBiltyFormData,
           ...storedDraft.formData,
           lorryNo: applyFieldCase("lorryNo", storedDraft.formData.lorryNo || ""),
@@ -227,9 +242,14 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
               ? String(user.biltyAccessFreightAmount)
               : ""),
           bookingClerk: storedDraft.formData.bookingClerk || user.name || "",
-        });
+        }));
         setHasSavedBilty(storedDraft.hasSavedBilty);
+        setSavedSnapshot(storedDraft.savedSnapshot ?? null);
         setDeadlineAt(user.biltyAccessExpiresAt || null);
+        // The stored draft can't know if the bilty was printed since.
+        getBilty(storedDraft.biltyId)
+          .then((response) => isMounted && setPrintedAt(response.data.printedAt || null))
+          .catch(() => undefined);
         setStatusMessage(
           storedDraft.hasSavedBilty
             ? "Resumed your last saved bilty. If you change anything, save it again before downloading."
@@ -250,16 +270,19 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
         setBiltyId(String(response.data.biltyId));
         setDeadlineAt(response.data.expiresAt || user.biltyAccessExpiresAt || null);
-        setFormData((prev) => ({
-          ...prev,
-          biltyNumber: response.data.biltyNumber,
-          consignmentNo: String(response.data.consignmentNo),
-          freight:
-            typeof user.biltyAccessFreightAmount === "number"
-              ? String(user.biltyAccessFreightAmount)
-              : prev.freight,
-          bookingClerk: prev.bookingClerk || user.name || "",
-        }));
+        setFormData((prev) =>
+          calculateBiltyTotals({
+            ...prev,
+            biltyNumber: response.data.biltyNumber,
+            consignmentNo: String(response.data.consignmentNo),
+            freight:
+              typeof user.biltyAccessFreightAmount === "number"
+                ? String(user.biltyAccessFreightAmount)
+                : prev.freight,
+            bookingClerk: prev.bookingClerk || user.name || "",
+          })
+        );
+        setBaselinePending(true);
         setStatusMessage(
           `Bilty number reserved. Fill and save before ${formatDeadlineTime(
             response.data.expiresAt || user.biltyAccessExpiresAt || null
@@ -296,10 +319,28 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
       biltyId,
       formData,
       hasSavedBilty,
+      savedSnapshot: savedSnapshot ?? undefined,
       updatedAt: new Date().toISOString(),
       expiresAt: deadlineAt || undefined,
     });
-  }, [user?.id, biltyId, formData, hasSavedBilty, deadlineAt, isEditMode]);
+  }, [user?.id, biltyId, formData, hasSavedBilty, savedSnapshot, deadlineAt, isEditMode]);
+
+  // Once a freshly reserved bilty's number is in the form, that untouched
+  // state is the baseline: nothing to save until the user changes something.
+  useEffect(() => {
+    if (baselinePending && formData.biltyNumber) {
+      setSavedSnapshot(JSON.stringify(formData));
+      setBaselinePending(false);
+    }
+  }, [baselinePending, formData]);
+
+  const isDirty = useMemo(
+    () =>
+      savedSnapshot === null
+        ? !hasSavedBilty
+        : JSON.stringify(formData) !== savedSnapshot,
+    [formData, savedSnapshot, hasSavedBilty]
+  );
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -345,6 +386,14 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
   const handleSelectPacking = (value: string) => {
     setFormData((prev) => ({ ...prev, methodOfPacking: value }));
+
+    if (hasSavedBilty) {
+      setHasSavedBilty(false);
+    }
+  };
+
+  const handleSelectDelivery = (value: string) => {
+    setFormData((prev) => ({ ...prev, deliveryAddress: value }));
 
     if (hasSavedBilty) {
       setHasSavedBilty(false);
@@ -402,9 +451,25 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     setIsSaving(true);
 
     try {
+      const sentFormData = formData;
       const response = await createBilty({ biltyId, formData, confirmExtraPayment });
       const savedFormData = response.data.bilty.formData;
       if (savedFormData) {
+        // What the form looks like once the server's version is merged in;
+        // that is the new "saved" baseline.
+        setSavedSnapshot(
+          JSON.stringify(
+            calculateBiltyTotals({
+              ...sentFormData,
+              ...savedFormData,
+              biltyNumber: sentFormData.biltyNumber,
+              consignmentNo: sentFormData.consignmentNo,
+              gstPaidBy: savedFormData.gstPaidBy || sentFormData.gstPaidBy || "Consignor",
+              basisOfBooking:
+                savedFormData.basisOfBooking || sentFormData.basisOfBooking || "To Pay",
+            })
+          )
+        );
         setFormData((current) =>
           calculateBiltyTotals({
             ...current,
@@ -446,12 +511,37 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     await submitBilty(false);
   };
 
-  // Superadmins may edit past a bilty's deadline; everyone else is locked.
-  const isLocked =
-    !isSuperadmin && Boolean(deadlineAt && new Date(deadlineAt).getTime() <= now);
+  // Past the deadline nobody (superadmin included) can change a bilty. Once
+  // printed, only a superadmin can.
+  const isExpired = Boolean(deadlineAt && new Date(deadlineAt).getTime() <= now);
+  const isPrintLocked = Boolean(printedAt) && !isSuperadmin;
+  const isLocked = isExpired || isPrintLocked;
   const showDuplicate = formData.basisOfBooking !== "To Pay";
   const printOriginal = !showDuplicate || printCopies !== "duplicate";
   const printDuplicate = showDuplicate && printCopies !== "original";
+
+  const handleBeforePrint = async () => {
+    if (printedAt) {
+      return true;
+    }
+
+    if (
+      !window.confirm(
+        "Once you print this bilty it can no longer be changed (only a super admin can). Print now?"
+      )
+    ) {
+      return false;
+    }
+
+    try {
+      const response = await markBiltyPrinted(biltyId);
+      setPrintedAt(response.data.printedAt);
+      return true;
+    } catch (err: any) {
+      showError(err?.response?.data?.error || "Couldn't record the print. Please try again.");
+      return false;
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 w-full pb-8">
@@ -505,24 +595,39 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
                 Back
               </button>
             ) : null}
+            {isSuperadmin && isEditMode && printedAt ? (
+              <button
+                type="button"
+                onClick={() => setShowRevisions(true)}
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm"
+              >
+                Version history
+              </button>
+            ) : null}
             <BiltyDownloadButtons
               disabled={!hasSavedBilty}
               showPrintButton
+              onBeforePrint={handleBeforePrint}
               copies={showDuplicate ? printCopies : undefined}
               onCopiesChange={setPrintCopies}
             />
             <button
               type="submit"
-              disabled={isPreparing || isSaving || isLocked || loadFailed}
+              disabled={isPreparing || isSaving || isLocked || loadFailed || !isDirty}
+              title={!isDirty && !isLocked ? "Nothing new to save" : undefined}
               className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-brand-200 disabled:cursor-not-allowed disabled:bg-brand-400"
             >
               {isSaving
                 ? "Saving..."
-                : isLocked
+                : isExpired
                   ? "Expired"
-                  : isEditMode
-                    ? "Save Changes"
-                    : "Save Bilty"}
+                  : isPrintLocked
+                    ? "Printed"
+                  : !isDirty && hasSavedBilty
+                    ? "Saved"
+                    : isEditMode
+                      ? "Save Changes"
+                      : "Save Bilty"}
             </button>
           </div>
         </div>
@@ -530,12 +635,22 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           Scanning a bill is best-effort text recognition &mdash; always double-check the filled fields before saving.
         </p>
 
-        {isLocked ? (
+        {isExpired ? (
           <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
-            This bilty's deadline has passed, so it is now read-only.{" "}
+            This bilty's deadline has passed, so no one can change it any more.{" "}
             {hasSavedBilty
-              ? "You can still download or print the saved copy below."
+              ? "You can still print the saved copy below."
               : "It was never saved, so start a new bilty to continue."}
+          </div>
+        ) : isPrintLocked ? (
+          <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
+            This bilty has been printed, so it can no longer be changed. Only a super admin can
+            change a printed bilty.
+          </div>
+        ) : printedAt && isSuperadmin ? (
+          <div className="no-print mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+            This bilty was already printed. Your changes are allowed, and the printed version is
+            kept as a backup under Version history.
           </div>
         ) : null}
         {statusMessage ? (
@@ -551,11 +666,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
             onSelectConsignor={isLocked ? undefined : handleSelectConsignor}
             onSelectConsignee={isLocked ? undefined : handleSelectConsignee}
             onSelectPacking={isLocked ? undefined : handleSelectPacking}
+            onSelectDelivery={isLocked ? undefined : handleSelectDelivery}
             suggestions={suggestions}
           />
         </div>
 
-        <div className="print-pages mx-auto hidden min-w-[900px] max-w-[1100px] overflow-x-auto lg:block">
+        <div className="print-pages mx-auto min-w-[900px] max-w-[1100px] overflow-x-auto">
           {/* On-screen editable page. Never printed: the printed Original and
               Duplicate below are static renders, so placeholders, empty date
               pickers and focus rings can't leak onto paper. */}
@@ -566,6 +682,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
               onSelectConsignor={isLocked ? undefined : handleSelectConsignor}
               onSelectConsignee={isLocked ? undefined : handleSelectConsignee}
               onSelectPacking={isLocked ? undefined : handleSelectPacking}
+            onSelectDelivery={isLocked ? undefined : handleSelectDelivery}
               suggestions={suggestions}
             />
           </div>
@@ -581,6 +698,10 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           ) : null}
         </div>
       </div>
+
+      {showRevisions && biltyId ? (
+        <BiltyRevisionsModal biltyId={biltyId} onClose={() => setShowRevisions(false)} />
+      ) : null}
 
       {extraPrompt ? (
         <div

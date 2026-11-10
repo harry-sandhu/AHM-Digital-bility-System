@@ -12,12 +12,18 @@ use serde::{Deserialize, Serialize};
 pub enum ContactKind {
     Consignor,
     Consignee,
+    /// Reusable "method of packing" text (stored in `address`).
+    Packing,
+    /// Reusable delivery-address text (stored in `address`).
+    Delivery,
 }
 
 pub fn kind_str(kind: ContactKind) -> &'static str {
     match kind {
         ContactKind::Consignor => "consignor",
         ContactKind::Consignee => "consignee",
+        ContactKind::Packing => "packing",
+        ContactKind::Delivery => "delivery",
     }
 }
 
@@ -25,6 +31,8 @@ pub fn parse_kind(raw: &str) -> Option<ContactKind> {
     match raw {
         "consignor" => Some(ContactKind::Consignor),
         "consignee" => Some(ContactKind::Consignee),
+        "packing" => Some(ContactKind::Packing),
+        "delivery" => Some(ContactKind::Delivery),
         _ => None,
     }
 }

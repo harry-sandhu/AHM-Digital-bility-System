@@ -100,7 +100,7 @@ const HomePage: React.FC = () => {
                 >
                   {hasActivePayment ? "Continue Bilty Flow" : "Start New Bilty"}
                 </button>
-                {(user?.role === "admin" || user?.role === "superadmin") && (
+                {user?.role === "superadmin" && (
                   <button
                     onClick={() => navigate("/users")}
                     className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"

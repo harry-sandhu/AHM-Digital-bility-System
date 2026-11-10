@@ -171,6 +171,9 @@ async fn build_bilty_response(state: &Arc<AppState>, bilty: &Bilty) -> Value {
     if let Some(amount) = bilty.payment_amount {
         value["paymentAmount"] = json!(amount);
     }
+    if let Some(s) = to_iso_string(bilty.printed_at) {
+        value["printedAt"] = json!(s);
+    }
     if let Some(adjustment) = bilty.freight_adjustment {
         value["freightAdjustment"] = json!(adjustment);
     }
@@ -261,6 +264,7 @@ pub async fn generate_bilty(
         expires_at: Some(BsonDateTime::from_chrono(expires_at)),
         freight_adjustment: None,
         extra_paid: None,
+        printed_at: None,
         created_at: Some(BsonDateTime::now()),
     };
 
@@ -401,7 +405,8 @@ pub async fn update_bilty(
         .map(|dt| is_past_deadline(Some(dt.to_chrono())))
         .unwrap_or(false);
 
-    if is_expired && current_user.role != Role::Superadmin {
+    // Past midnight nobody can change a bilty, superadmin included.
+    if is_expired {
         if bilty.status != Some(BiltyStatus::Expired) {
             collection
                 .update_one(
@@ -413,7 +418,15 @@ pub async fn update_bilty(
 
         return Err(AppError::new(
             StatusCode::GONE,
-            "Bilty expired. Please create a new bilty after paying again.",
+            "Bilty expired. No changes are allowed after midnight.",
+        ));
+    }
+
+    // Once printed, only a superadmin may change it.
+    if bilty.printed_at.is_some() && current_user.role != Role::Superadmin {
+        return Err(AppError::new(
+            StatusCode::FORBIDDEN,
+            "This bilty has been printed and can only be changed by a super admin.",
         ));
     }
 
@@ -513,6 +526,23 @@ pub async fn update_bilty(
         format_amount(grand_total - parse_amount(next_form_data.get_str("advance").ok())),
     );
 
+    // A superadmin changing a printed bilty: keep the printed version as a
+    // backup (never returned by the normal bilty endpoints).
+    if bilty.printed_at.is_some() && bilty.form_data != next_form_data {
+        state
+            .db
+            .collection::<Document>("biltyrevisions")
+            .insert_one(doc! {
+                "biltyId": bilty.id,
+                "formData": bilty.form_data.clone(),
+                "freightAdjustment": bilty.freight_adjustment,
+                "replacedAt": BsonDateTime::now(),
+                "changedBy": current_user.id,
+                "changedByName": current_user.name.clone(),
+            })
+            .await?;
+    }
+
     bilty.form_data = next_form_data;
     bilty.status = Some(if is_expired {
         BiltyStatus::Expired
@@ -524,35 +554,32 @@ pub async fn update_bilty(
         .replace_one(doc! { "_id": object_id }, &bilty)
         .await?;
 
-    // Best-effort: whatever consignor/consignee was typed gets added to
-    // the saving user's contact list if it isn't there already. Never
-    // blocks or fails the bilty save itself.
-    if let Ok(address) = bilty.form_data.get_str("consignorAddress") {
-        let gstin = bilty.form_data.get_str("consignorGstin").ok();
-        if let Err(err) = crate::handlers::contacts::auto_save_contact(
-            &state.db,
-            &current_user,
-            crate::models::contact::ContactKind::Consignor,
-            address,
-            gstin,
-        )
-        .await
-        {
-            tracing::warn!(error = %err, "failed to auto-save consignor contact");
-        }
-    }
-    if let Ok(address) = bilty.form_data.get_str("consigneeAddress") {
-        let gstin = bilty.form_data.get_str("consigneeGstin").ok();
-        if let Err(err) = crate::handlers::contacts::auto_save_contact(
-            &state.db,
-            &current_user,
-            crate::models::contact::ContactKind::Consignee,
-            address,
-            gstin,
-        )
-        .await
-        {
-            tracing::warn!(error = %err, "failed to auto-save consignee contact");
+    // Best-effort: whatever consignor/consignee/packing/delivery text was
+    // typed gets added to the saving user's suggestion lists if it isn't
+    // there already. Never blocks or fails the bilty save itself.
+    {
+        use crate::models::contact::ContactKind;
+        let entries = [
+            (ContactKind::Consignor, "consignorAddress", Some("consignorGstin")),
+            (ContactKind::Consignee, "consigneeAddress", Some("consigneeGstin")),
+            (ContactKind::Packing, "methodOfPacking", None),
+            (ContactKind::Delivery, "deliveryAddress", None),
+        ];
+        for (kind, field, gstin_field) in entries {
+            if let Ok(value) = bilty.form_data.get_str(field) {
+                let gstin = gstin_field.and_then(|f| bilty.form_data.get_str(f).ok());
+                if let Err(err) = crate::handlers::contacts::auto_save_contact(
+                    &state.db,
+                    &current_user,
+                    kind,
+                    value,
+                    gstin,
+                )
+                .await
+                {
+                    tracing::warn!(error = %err, field, "failed to auto-save suggestion");
+                }
+            }
         }
     }
 
@@ -566,43 +593,6 @@ pub async fn update_bilty(
         "bilty": build_bilty_response(&state, &saved).await,
     }))
     .into_response())
-}
-
-/// GET /api/bilty/suggestions/packing — the user's previously-used
-/// "method of packing" values, most frequently used first.
-pub async fn get_packing_suggestions(
-    State(state): State<Arc<AppState>>,
-    current_user: UserRecord,
-) -> Result<impl IntoResponse, AppError> {
-    let cursor = state
-        .db
-        .collection::<Document>("bilties")
-        .find(doc! { "createdBy": current_user.id })
-        .projection(doc! { "formData.methodOfPacking": 1 })
-        .await?;
-    let docs: Vec<Document> = cursor.try_collect().await?;
-
-    let mut counts: std::collections::HashMap<String, (usize, String)> = std::collections::HashMap::new();
-    for doc in &docs {
-        let value = doc
-            .get_document("formData")
-            .ok()
-            .and_then(|form| form.get_str("methodOfPacking").ok())
-            .map(str::trim)
-            .unwrap_or("");
-        if value.is_empty() {
-            continue;
-        }
-        let entry = counts
-            .entry(value.to_lowercase())
-            .or_insert_with(|| (0, value.to_string()));
-        entry.0 += 1;
-    }
-
-    let mut ranked: Vec<(usize, String)> = counts.into_values().collect();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-
-    Ok(Json(ranked.into_iter().map(|(_, value)| value).collect::<Vec<_>>()))
 }
 
 pub async fn get_my_bilty(
@@ -780,4 +770,74 @@ pub async fn extract_bill_data(
         "extractedFields": extracted_fields,
         "rawText": raw_text,
     })))
+}
+
+
+/// POST /api/bilty/:id/print — records the first print. From then on only a
+/// superadmin may change the bilty. Idempotent.
+pub async fn mark_printed(
+    State(state): State<Arc<AppState>>,
+    current_user: UserRecord,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    let object_id = ObjectId::parse_str(&id).map_err(|_| bad_request("Invalid bilty id"))?;
+    let collection = state.db.collection::<Bilty>("bilties");
+    let bilty = collection
+        .find_one(doc! { "_id": object_id })
+        .await?
+        .ok_or_else(|| AppError::new(StatusCode::NOT_FOUND, "Bilty not found"))?;
+
+    if bilty.created_by != current_user.id && !can_manage_all_bilties(current_user.role) {
+        return Err(AppError::new(StatusCode::FORBIDDEN, "Access denied"));
+    }
+
+    let printed_at = match bilty.printed_at {
+        Some(existing) => existing,
+        None => {
+            let now = BsonDateTime::now();
+            collection
+                .update_one(
+                    // `printedAt: null` matches both a missing field and a stored null.
+                    doc! { "_id": object_id, "printedAt": mongodb::bson::Bson::Null },
+                    doc! { "$set": { "printedAt": now } },
+                )
+                .await?;
+            now
+        }
+    };
+
+    Ok(Json(json!({ "printedAt": to_iso_string(Some(printed_at)) })))
+}
+
+/// GET /api/bilty/:id/revisions — superadmin only. Backed-up printed
+/// versions of a bilty, newest first.
+pub async fn get_revisions(
+    State(state): State<Arc<AppState>>,
+    current_user: UserRecord,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, AppError> {
+    require_role(&current_user, &[Role::Superadmin])?;
+    let object_id = ObjectId::parse_str(&id).map_err(|_| bad_request("Invalid bilty id"))?;
+
+    let cursor = state
+        .db
+        .collection::<Document>("biltyrevisions")
+        .find(doc! { "biltyId": object_id })
+        .sort(doc! { "replacedAt": -1 })
+        .await?;
+    let docs: Vec<Document> = cursor.try_collect().await?;
+
+    let revisions: Vec<Value> = docs
+        .iter()
+        .map(|d| {
+            json!({
+                "_id": d.get_object_id("_id").map(|o| o.to_hex()).unwrap_or_default(),
+                "formData": d.get_document("formData").ok().and_then(|f| serde_json::to_value(f).ok()).unwrap_or_else(|| json!({})),
+                "replacedAt": to_iso_string(d.get_datetime("replacedAt").ok().copied()),
+                "changedByName": d.get_str("changedByName").unwrap_or_default(),
+            })
+        })
+        .collect();
+
+    Ok(Json(revisions))
 }

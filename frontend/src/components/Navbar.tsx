@@ -58,7 +58,7 @@ const Navbar: React.FC = () => {
           >
             Create Bilty
           </button>
-          {(user?.role === "admin" || user?.role === "superadmin") && (
+          {user?.role === "superadmin" && (
             <button
               onClick={() => navigate("/users")}
               className="rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
@@ -79,6 +79,12 @@ const Navbar: React.FC = () => {
                 className="rounded-full border border-accent-200 bg-accent-50 px-4 py-2 text-sm font-medium text-accent-700 transition hover:bg-accent-100"
               >
                 Number Ranges
+              </button>
+              <button
+                onClick={() => navigate("/superadmin/suggestions")}
+                className="rounded-full border border-accent-200 bg-accent-50 px-4 py-2 text-sm font-medium text-accent-700 transition hover:bg-accent-100"
+              >
+                Suggestions
               </button>
             </>
           )}
