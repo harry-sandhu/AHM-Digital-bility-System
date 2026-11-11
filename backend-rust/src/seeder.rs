@@ -48,6 +48,7 @@ pub async fn seed_superadmin(
         bilty_access_expires_at: None,
         bilty_access_amount: Some(0.0),
         bilty_access_freight_amount: None,
+        credit_balance: None,
         group_id: None,
         created_at: Some(mongodb::bson::DateTime::now()),
     };

@@ -139,6 +139,14 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
             </p>
           </div>
         ) : null}
+        {bilty.gstChargePaid ? (
+          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
+            <p className="font-semibold text-slate-900">GST charge paid</p>
+            <p className="mt-1">
+              ₹{bilty.gstChargePaid.toLocaleString("en-IN", { maximumFractionDigits: 2 })} (Transporter pays the GST: 5% of freight)
+            </p>
+          </div>
+        ) : null}
         {bilty.expiresAt ? (
           <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
             <p className="font-semibold text-slate-900">Deadline</p>

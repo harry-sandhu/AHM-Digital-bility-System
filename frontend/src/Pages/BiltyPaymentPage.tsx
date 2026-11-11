@@ -37,6 +37,11 @@ const BiltyPaymentPage: React.FC = () => {
     ? getBiltyAccessAmount(parsedFreightAmount)
     : 200;
 
+  // Credit from earlier (e.g. a lower GST charge) is taken off a new payment.
+  const creditAvailable = user?.creditBalance ?? 0;
+  const creditApplied = hasActivePayment ? 0 : Math.min(creditAvailable, amount);
+  const amountToPay = amount - creditApplied;
+
   if (sessionStorage.getItem(BILTY_TERMS_ACCEPTED_KEY) !== "true") {
     return <Navigate to="/bilty/terms" replace />;
   }
@@ -97,6 +102,11 @@ const BiltyPaymentPage: React.FC = () => {
                 Bilty charge
               </p>
               <p className="mt-2 text-3xl font-bold text-slate-900">₹{amount}</p>
+              {creditApplied > 0 ? (
+                <p className="mt-2 text-sm font-medium text-success-700">
+                  Credit from earlier: −₹{creditApplied}. You pay ₹{amountToPay}.
+                </p>
+              ) : null}
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 This payment unlocks bilty generation for today.
               </p>

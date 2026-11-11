@@ -7,6 +7,8 @@ export interface BiltyRecord {
   /** Fee for current freight minus fee originally paid; >0 extra paid, <0 discount. */
   freightAdjustment?: number;
   extraPaid?: number;
+  /** GST charge paid when the Transporter pays the GST (5% of freight). */
+  gstChargePaid?: number;
   paymentPaidAt?: string;
   paymentExpiresAt?: string;
   expiresAt?: string;

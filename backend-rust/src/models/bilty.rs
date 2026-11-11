@@ -44,6 +44,10 @@ pub struct Bilty {
     /// Highest extra charge the user has already confirmed/paid.
     #[serde(rename = "extraPaid", default)]
     pub extra_paid: Option<f64>,
+    /// GST charge paid for this bilty when the Transporter pays the GST
+    /// (5% of its freight). Raised/lowered as the freight changes.
+    #[serde(rename = "gstChargePaid", default)]
+    pub gst_charge_paid: Option<f64>,
     /// Set the first time the bilty is printed. After this only a
     /// superadmin may change it (and each change keeps a backup).
     #[serde(rename = "printedAt", default)]

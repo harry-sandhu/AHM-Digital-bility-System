@@ -43,6 +43,26 @@ const formatDeadlineTime = (deadline?: string | null) => {
   });
 };
 
+/** When the Transporter pays the GST, the user pays this share of the freight. */
+const GST_CHARGE_RATE = 0.05;
+const round2 = (value: number) => Math.round(value * 100) / 100;
+const toAmount = (value: string) => {
+  const n = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+const inr = (value: number) => value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+
+type GstPrompt = {
+  /** "select": just picked Transporter (nothing applied yet). "save": the server asked on Save. */
+  origin: "select" | "save";
+  freight: number;
+  required: number;
+  paid: number;
+  due: number;
+  creditUsed: number;
+  cashDue: number;
+};
+
 type ExtraPaymentPrompt = {
   extraDue: number;
   newFee: number;
@@ -56,7 +76,7 @@ type ExtraPaymentPrompt = {
  */
 const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, updateUser } = useAuth();
   const isEditMode = Boolean(editBiltyId);
   const isSuperadmin = role === "superadmin";
   const { showSuccess, showError, showToast } = useToast();
@@ -84,6 +104,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   const [showRevisions, setShowRevisions] = useState(false);
   const [printCopies, setPrintCopies] = useState<PrintCopies>("both");
   const [extraPrompt, setExtraPrompt] = useState<ExtraPaymentPrompt | null>(null);
+  const [gstPrompt, setGstPrompt] = useState<GstPrompt | null>(null);
+  // GST charge already paid for this bilty, and the total the user has agreed to pay in this session.
+  const [gstChargePaid, setGstChargePaid] = useState(0);
+  const [gstAck, setGstAck] = useState(0);
+  // Popups the user has accepted for the current edit; cleared whenever the form changes.
+  const confirms = useRef({ extra: false, gst: false });
   const [consignors, setConsignors] = useState<SavedContact[]>([]);
   const [consignees, setConsignees] = useState<SavedContact[]>([]);
   const [packingOptions, setPackingOptions] = useState<SavedContact[]>([]);
@@ -174,6 +200,8 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         setBiltyId(response.data._id);
         setDeadlineAt(response.data.expiresAt || null);
         setPrintedAt(response.data.printedAt || null);
+        setGstChargePaid(response.data.gstChargePaid ?? 0);
+        setGstAck(response.data.gstChargePaid ?? 0);
         const loaded = {
           ...normalizeBiltyFormData(response.data.formData),
           biltyNumber: response.data.biltyNumber,
@@ -249,7 +277,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         setDeadlineAt(user.biltyAccessExpiresAt || null);
         // The stored draft can't know if the bilty was printed since.
         getBilty(storedDraft.biltyId)
-          .then((response) => isMounted && setPrintedAt(response.data.printedAt || null))
+          .then((response) => {
+            if (!isMounted) return;
+            setPrintedAt(response.data.printedAt || null);
+            setGstChargePaid(response.data.gstChargePaid ?? 0);
+            setGstAck(response.data.gstChargePaid ?? 0);
+          })
           .catch(() => undefined);
         setStatusMessage(
           storedDraft.hasSavedBilty
@@ -351,6 +384,32 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
     if (name === "consignmentNo") {
       return;
+    }
+
+    confirms.current = { extra: false, gst: false };
+
+    if (name === "gstPaidBy" && value === "Transporter" && formData.gstPaidBy !== "Transporter") {
+      // The Transporter pays the GST, so the user pays 5% of the freight.
+      const freight = toAmount(formData.freight);
+      if (freight <= 0) {
+        showError("Enter the freight amount first, then choose Transporter.");
+        return;
+      }
+      const required = round2(freight * GST_CHARGE_RATE);
+      const covered = Math.max(gstChargePaid, gstAck);
+      const due = round2(required - covered);
+      if (due > 0.004) {
+        const creditUsed = round2(Math.min(user?.creditBalance ?? 0, due));
+        setGstPrompt({ origin: "select", freight, required, paid: covered, due, creditUsed, cashDue: round2(due - creditUsed) });
+        return; // the radio only changes once they accept the payment
+      }
+    }
+
+    if (name === "gstPaidBy" && value !== "Transporter" && formData.gstPaidBy === "Transporter" && gstChargePaid > 0) {
+      showToast(
+        "info",
+        `The ₹${inr(gstChargePaid)} GST charge you paid will be credited toward your next bilty fees when you save.`
+      );
     }
 
     setFormData((prev) =>
@@ -465,7 +524,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     }
   };
 
-  const submitBilty = async (confirmExtraPayment = false) => {
+  const submitBilty = async (confirmExtraPayment = false, confirmGst = false) => {
     if (!biltyId) {
       showError("Bilty number is not ready yet.");
       return;
@@ -475,7 +534,18 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
     try {
       const sentFormData = formData;
-      const response = await createBilty({ biltyId, formData, confirmExtraPayment });
+      if (confirmExtraPayment) confirms.current.extra = true;
+      if (confirmGst) confirms.current.gst = true;
+      const gstRequiredNow =
+        formData.gstPaidBy === "Transporter" ? round2(toAmount(formData.freight) * GST_CHARGE_RATE) : 0;
+      // Already agreed to (at least) this much GST charge in this session: no need to ask again.
+      const gstAgreed = confirms.current.gst || (gstRequiredNow > 0 && gstAck + 0.004 >= gstRequiredNow);
+      const response = await createBilty({
+        biltyId,
+        formData,
+        confirmExtraPayment: confirms.current.extra,
+        confirmGstPayment: gstAgreed,
+      });
       const savedFormData = response.data.bilty.formData;
       if (savedFormData) {
         // What the form looks like once the server's version is merged in;
@@ -506,6 +576,17 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         );
       }
       setExtraPrompt(null);
+      setGstPrompt(null);
+      confirms.current = { extra: false, gst: false };
+      const paidNow = response.data.bilty.gstChargePaid ?? 0;
+      setGstChargePaid(paidNow);
+      setGstAck(paidNow);
+      if ((response.data.gstCredited ?? 0) > 0) {
+        showToast("info", `₹${inr(response.data.gstCredited ?? 0)} credited toward your next bilty fees.`);
+      }
+      if (typeof response.data.creditBalance === "number" && user) {
+        updateUser({ ...user, creditBalance: response.data.creditBalance });
+      }
       setHasSavedBilty(true);
       setStatusMessage("");
       showSuccess(
@@ -520,6 +601,18 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           extraDue: Number(err.response.data.extraDue) || 0,
           newFee: Number(err.response.data.newFee) || 0,
           paidFee: Number(err.response.data.paidFee) || 0,
+        });
+      } else if (err?.response?.status === 402 && err.response.data?.code === "GST_PAYMENT_REQUIRED") {
+        // The Transporter pays the GST: the user pays 5% of freight before this saves.
+        const d = err.response.data;
+        setGstPrompt({
+          origin: "save",
+          freight: Number(d.freight) || 0,
+          required: Number(d.gstRequired) || 0,
+          paid: Number(d.gstPaid) || 0,
+          due: Number(d.gstDue) || 0,
+          creditUsed: Number(d.creditUsed) || 0,
+          cashDue: Number(d.cashDue) || 0,
         });
       } else {
         showError(err?.response?.data?.error || "Failed to save bilty");
@@ -730,6 +823,78 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         <BiltyRevisionsModal biltyId={biltyId} onClose={() => setShowRevisions(false)} />
       ) : null}
 
+      {gstPrompt ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gst-payment-title"
+          className="no-print fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4"
+        >
+          <div className="w-full max-w-md rounded-card bg-white p-6 shadow-xl">
+            <h3 id="gst-payment-title" className="text-lg font-bold text-slate-900">
+              GST paid by Transporter
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              When the Transporter pays the GST, you pay {Math.round(GST_CHARGE_RATE * 100)}% of the
+              freight: ₹{inr(gstPrompt.freight)} × {Math.round(GST_CHARGE_RATE * 100)}% ={" "}
+              <strong>₹{inr(gstPrompt.required)}</strong>.
+            </p>
+            {gstPrompt.paid > 0 ? (
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Already paid: ₹{inr(gstPrompt.paid)}. Balance to pay: <strong>₹{inr(gstPrompt.due)}</strong>.
+              </p>
+            ) : null}
+            {gstPrompt.creditUsed > 0 ? (
+              <p className="mt-2 text-sm leading-6 text-success-700">
+                Credit from earlier: −₹{inr(gstPrompt.creditUsed)} is applied.
+              </p>
+            ) : null}
+            <p className="mt-3 text-base font-semibold text-slate-900">
+              {gstPrompt.cashDue > 0 ? `To pay now: ₹${inr(gstPrompt.cashDue)}` : "Nothing more to pay: your credit covers it."}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              If you lower the freight later, the difference is credited toward your next bilty fees.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setGstPrompt(null);
+                  confirms.current = { extra: false, gst: false };
+                }}
+                disabled={isSaving}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => {
+                  const prompt = gstPrompt;
+                  setGstAck(prompt.required);
+                  if (prompt.origin === "select") {
+                    // Picked Transporter: apply it now; the charge is recorded when the bilty is saved.
+                    setFormData((prev) => calculateBiltyTotals({ ...prev, gstPaidBy: "Transporter" }));
+                    setHasSavedBilty(false);
+                    setGstPrompt(null);
+                  } else {
+                    void submitBilty(false, true);
+                  }
+                }}
+                className="rounded-2xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-brand-400"
+              >
+                {isSaving
+                  ? "Saving..."
+                  : gstPrompt.cashDue > 0
+                    ? `Pay ₹${inr(gstPrompt.cashDue)} & continue`
+                    : "Use credit & continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {extraPrompt ? (
         <div
           role="dialog"
@@ -749,7 +914,10 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setExtraPrompt(null)}
+                onClick={() => {
+                  setExtraPrompt(null);
+                  confirms.current = { extra: false, gst: false };
+                }}
                 disabled={isSaving}
                 className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
               >

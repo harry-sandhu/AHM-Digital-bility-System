@@ -38,6 +38,30 @@ fn bad_request(message: impl Into<String>) -> AppError {
 
 const DEFAULT_BILTY_ACCESS_AMOUNT: f64 = 200.0;
 
+/// When the Transporter pays the GST ("GST Paid By" = Transporter), the user
+/// pays this share of the bilty's freight.
+const GST_CHARGE_RATE: f64 = 0.05;
+
+fn round2(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+}
+
+/// Adds `delta` (negative = spend) to a user's credit balance. Uses an
+/// aggregation-pipeline update so it works whether the field is missing, null
+/// or a number (a plain `$inc` fails on null), and never goes below zero.
+async fn apply_credit(db: &mongodb::Database, user_id: ObjectId, delta: f64) -> Result<(), mongodb::error::Error> {
+    db.collection::<Document>("users")
+        .update_one(
+            doc! { "_id": user_id },
+            vec![doc! { "$set": { "creditBalance": { "$max": [
+                0.0,
+                { "$add": [ { "$ifNull": [ { "$convert": { "input": "$creditBalance", "to": "double", "onError": 0.0, "onNull": 0.0 } }, 0.0 ] }, delta ] }
+            ] } } }],
+        )
+        .await?;
+    Ok(())
+}
+
 /// backend/src/controllers/biltyController.ts's `BILTY_FORM_FIELDS`,
 /// ported verbatim and in the same order.
 const BILTY_FORM_FIELDS: &[&str] = &[
@@ -174,6 +198,9 @@ async fn build_bilty_response(state: &Arc<AppState>, bilty: &Bilty) -> Value {
     if let Some(s) = to_iso_string(bilty.printed_at) {
         value["printedAt"] = json!(s);
     }
+    if let Some(paid) = bilty.gst_charge_paid {
+        value["gstChargePaid"] = json!(paid);
+    }
     if let Some(adjustment) = bilty.freight_adjustment {
         value["freightAdjustment"] = json!(adjustment);
     }
@@ -264,6 +291,7 @@ pub async fn generate_bilty(
         expires_at: Some(BsonDateTime::from_chrono(expires_at)),
         freight_adjustment: None,
         extra_paid: None,
+        gst_charge_paid: None,
         printed_at: None,
         created_at: Some(BsonDateTime::now()),
     };
@@ -343,9 +371,16 @@ pub async fn purchase_bilty_access(
         update.insert("biltyAccessPaidAt", BsonDateTime::from_chrono(now));
     }
 
+    // Credit from earlier (e.g. a lower GST charge) is taken off this new payment.
+    let existing_credit = user_doc.get_f64("creditBalance").unwrap_or(0.0);
+    let credit_used = if has_existing_access { 0.0 } else { round2(existing_credit.min(bilty_access_amount).max(0.0)) };
+
     users
         .update_one(doc! { "_id": current_user.id }, doc! { "$set": update })
         .await?;
+    if credit_used > 0.0 {
+        apply_credit(&state.db, current_user.id, -credit_used).await?;
+    }
 
     let paid_at = if has_existing_access {
         user_doc.get_datetime("biltyAccessPaidAt").ok().copied()
@@ -365,7 +400,9 @@ pub async fn purchase_bilty_access(
             "biltyAccessExpiresAt": to_iso_string(Some(BsonDateTime::from_chrono(expires_at))),
             "biltyAccessAmount": bilty_access_amount,
             "biltyAccessFreightAmount": freight_amount,
+            "creditBalance": round2(existing_credit - credit_used),
         },
+        "creditUsed": credit_used,
     })))
 }
 
@@ -377,6 +414,9 @@ pub struct UpdateBiltyRequest {
     /// a freight change moves the bilty into a more expensive tier.
     #[serde(rename = "confirmExtraPayment", default)]
     pub confirm_extra_payment: Option<bool>,
+    /// Set after the user accepts the GST-charge popup (Transporter pays GST).
+    #[serde(rename = "confirmGstPayment", default)]
+    pub confirm_gst_payment: Option<bool>,
 }
 
 pub async fn update_bilty(
@@ -515,6 +555,49 @@ pub async fn update_bilty(
     bilty.freight_adjustment = new_adjustment;
     bilty.extra_paid = new_extra_paid;
 
+    // GST charge: when the Transporter pays the GST, the user pays 5% of the
+    // freight. More freight -> pay the difference; less freight (or another GST
+    // payer) -> the difference is credited toward their next payments.
+    let transporter_pays_gst = next_form_data.get_str("gstPaidBy").ok() == Some("Transporter");
+    if transporter_pays_gst && freight_now <= 0.0 && is_owner {
+        return Err(bad_request("Enter the freight amount before choosing Transporter as the GST payer"));
+    }
+    let gst_required = if transporter_pays_gst { round2(freight_now * GST_CHARGE_RATE) } else { 0.0 };
+    let gst_paid = bilty.gst_charge_paid.unwrap_or(0.0);
+    let user_credit = current_user.credit_balance.unwrap_or(0.0);
+    let mut credit_delta = 0.0_f64; // + credited back, - credit used
+    let mut gst_credited = 0.0_f64;
+    if gst_required > gst_paid + 0.004 {
+        let due = round2(gst_required - gst_paid);
+        if is_owner {
+            let credit_used = round2(user_credit.min(due).max(0.0));
+            if body.confirm_gst_payment != Some(true) {
+                return Ok((
+                    StatusCode::PAYMENT_REQUIRED,
+                    Json(json!({
+                        "error": format!("GST paid by Transporter: pay \u{20b9}{} (5% of freight \u{20b9}{}).", format_amount(due), format_amount(freight_now)),
+                        "code": "GST_PAYMENT_REQUIRED",
+                        "freight": freight_now,
+                        "gstRequired": gst_required,
+                        "gstPaid": gst_paid,
+                        "gstDue": due,
+                        "creditUsed": credit_used,
+                        "cashDue": round2(due - credit_used),
+                    })),
+                )
+                    .into_response());
+            }
+            credit_delta = -credit_used;
+        }
+        bilty.gst_charge_paid = Some(gst_required);
+    } else if gst_required < gst_paid - 0.004 {
+        if is_owner {
+            gst_credited = round2(gst_paid - gst_required);
+            credit_delta = gst_credited;
+        }
+        bilty.gst_charge_paid = Some(gst_required);
+    }
+
     let grand_total = parse_amount(next_form_data.get_str("freight").ok())
         + parse_amount(next_form_data.get_str("labour").ok())
         + parse_amount(next_form_data.get_str("gstCharges").ok())
@@ -550,9 +633,16 @@ pub async fn update_bilty(
         BiltyStatus::Draft
     });
 
-    collection
-        .replace_one(doc! { "_id": object_id }, &bilty)
-        .await?;
+    // Credit first, then the bilty; if saving the bilty fails, hand the credit back.
+    if credit_delta.abs() > 0.004 {
+        apply_credit(&state.db, current_user.id, credit_delta).await?;
+    }
+    if let Err(err) = collection.replace_one(doc! { "_id": object_id }, &bilty).await {
+        if credit_delta.abs() > 0.004 {
+            let _ = apply_credit(&state.db, current_user.id, -credit_delta).await;
+        }
+        return Err(err.into());
+    }
 
     // Best-effort: whatever consignor/consignee/packing/delivery text was
     // typed gets added to the saving user's suggestion lists if it isn't
@@ -588,9 +678,20 @@ pub async fn update_bilty(
         .await?
         .ok_or_else(|| AppError::internal("Failed to update bilty"))?;
 
+    let credit_balance = state
+        .db
+        .collection::<Document>("users")
+        .find_one(doc! { "_id": current_user.id })
+        .projection(doc! { "creditBalance": 1 })
+        .await?
+        .and_then(|u| u.get_f64("creditBalance").ok())
+        .unwrap_or(0.0);
+
     Ok(Json(json!({
         "message": "Bilty updated successfully",
         "bilty": build_bilty_response(&state, &saved).await,
+        "gstCredited": gst_credited,
+        "creditBalance": credit_balance,
     }))
     .into_response())
 }

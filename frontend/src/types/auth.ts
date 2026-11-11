@@ -10,6 +10,8 @@ export interface AuthUser {
   biltyAccessExpiresAt?: string | null;
   biltyAccessAmount?: number;
   biltyAccessFreightAmount?: number | null;
+  /** Money credited back (e.g. a lower GST charge); taken off the next payment. */
+  creditBalance?: number;
 }
 
 export interface AuthPayload {

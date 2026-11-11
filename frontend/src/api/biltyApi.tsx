@@ -21,12 +21,20 @@ export const createBilty = (data: {
   biltyId: string;
   formData: Record<string, string>;
   confirmExtraPayment?: boolean;
+  confirmGstPayment?: boolean;
 }) =>
-  axiosInstance.put<{ message: string; bilty: BiltyRecord }>(
+  axiosInstance.put<{
+    message: string;
+    bilty: BiltyRecord;
+    /** GST charge handed back as credit because freight went down. */
+    gstCredited?: number;
+    creditBalance?: number;
+  }>(
     `/bilty/${data.biltyId}`,
     {
       formData: data.formData,
       confirmExtraPayment: data.confirmExtraPayment || undefined,
+      confirmGstPayment: data.confirmGstPayment || undefined,
     }
   );
 

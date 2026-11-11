@@ -40,6 +40,10 @@ pub struct User {
     pub bilty_access_amount: Option<f64>,
     #[serde(rename = "biltyAccessFreightAmount", default)]
     pub bilty_access_freight_amount: Option<f64>,
+    /// Money credited back (e.g. a lower GST charge after freight was reduced),
+    /// deducted from the user's next payments.
+    #[serde(rename = "creditBalance", default)]
+    pub credit_balance: Option<f64>,
     /// Set once a superadmin assigns this user to a shared contacts group
     /// (see models::group); unset means they have their own personal
     /// consignor/consignee contact list.
@@ -79,6 +83,8 @@ pub struct UserRecord {
     pub bilty_access_amount: Option<f64>,
     #[serde(rename = "biltyAccessFreightAmount", default)]
     pub bilty_access_freight_amount: Option<f64>,
+    #[serde(rename = "creditBalance", default)]
+    pub credit_balance: Option<f64>,
     #[serde(rename = "groupId", default)]
     pub group_id: Option<mongodb::bson::oid::ObjectId>,
     #[serde(rename = "createdAt", default)]
@@ -104,6 +110,8 @@ pub struct PublicUser {
     pub bilty_access_amount: f64,
     #[serde(rename = "biltyAccessFreightAmount")]
     pub bilty_access_freight_amount: Option<f64>,
+    #[serde(rename = "creditBalance")]
+    pub credit_balance: f64,
 }
 
 fn to_iso_string(value: Option<BsonDateTime>) -> Option<String> {
@@ -120,6 +128,7 @@ pub trait SanitizableUser {
     fn bilty_access_expires_at(&self) -> Option<BsonDateTime>;
     fn bilty_access_amount(&self) -> Option<f64>;
     fn bilty_access_freight_amount(&self) -> Option<f64>;
+    fn credit_balance(&self) -> Option<f64>;
 }
 
 macro_rules! impl_sanitizable_user {
@@ -152,6 +161,9 @@ macro_rules! impl_sanitizable_user {
             fn bilty_access_freight_amount(&self) -> Option<f64> {
                 self.bilty_access_freight_amount
             }
+            fn credit_balance(&self) -> Option<f64> {
+                self.credit_balance
+            }
         }
     };
 }
@@ -170,6 +182,7 @@ pub fn sanitize_user(user: &impl SanitizableUser) -> PublicUser {
         bilty_access_expires_at: to_iso_string(user.bilty_access_expires_at()),
         bilty_access_amount: user.bilty_access_amount().unwrap_or(0.0),
         bilty_access_freight_amount: user.bilty_access_freight_amount(),
+        credit_balance: user.credit_balance().unwrap_or(0.0),
     }
 }
 
