@@ -1,47 +1,25 @@
 export const BILTY_TERMS_ACCEPTED_KEY = "biltyTermsAccepted";
 
-export const TERMS_INTRO =
-  "These terms and conditions govern the booking, carriage, delivery, billing, and handling of consignments booked through AHM Transport Service.";
+/** One list, used by the "accept terms" page and by the printed last page of every bilty. */
+export const TERMS_TITLE = "Terms & Conditions of Carriage";
+export const TERMS_SUBTITLE = "Owner's Risk";
 
-export const TERMS_SECTIONS = [
-  {
-    title: "1. Booking & Information",
-    points: [
-      "The consignor must provide complete and correct shipment details at the time of booking.",
-      "Any difference in quantity, weight, declared value, packing, or address may lead to delay, additional charges, or refusal of delivery.",
-      "AHM Transport Service may refuse any consignment that is unsafe, improperly packed, prohibited, or unlawful.",
-    ],
-  },
-  {
-    title: "2. Packing, Risk & Responsibility",
-    points: [
-      "Goods must be packed properly by the consignor to withstand loading, movement, and unloading.",
-      "Fragile, perishable, liquid, or high-value goods are booked at the consignor's risk unless specifically covered by insurance.",
-      "The transporter is not responsible for damage caused by poor packing, leakage, natural deterioration, or force majeure events.",
-    ],
-  },
-  {
-    title: "3. Freight, GST & Other Charges",
-    points: [
-      "Freight, labour, GST, bilty charges, and other agreed charges are payable as per the bilty details.",
-      "Demurrage, detention, unloading, waiting, storage, or route-related additional expenses, if any, shall be payable by the liable party.",
-      "GST liability will be borne by the person selected on the bilty unless otherwise mutually agreed in writing.",
-    ],
-  },
-  {
-    title: "4. Delivery Rules",
-    points: [
-      "Delivery will be made at the destination address or against proper identification, bilty reference, or authorized instruction.",
-      "If the consignee is unavailable, refuses delivery, or delays collection, the transporter may hold the goods at the owner's risk and cost.",
-      "Claims regarding shortage, visible damage, or mismatch should be recorded at the time of delivery itself.",
-    ],
-  },
-  {
-    title: "5. Claims, Insurance & Limitation",
-    points: [
-      "Insurance details, if any, must be correctly mentioned in the bilty. In the absence of valid insurance, liability shall remain limited as per applicable law and circumstances.",
-      "No claim shall be entertained for indirect loss, business interruption, market loss, or delay-based consequential damages.",
-      "All disputes are subject to mutually applicable law and the jurisdiction of the transporter's operating location unless otherwise agreed.",
-    ],
-  },
-] as const;
+export const TERMS: readonly string[] = [
+  "The Transporter takes absolutely no responsibility for delay or losses in transit due to accident, strikes or any other cause beyond its control, or due to breakdown of the vehicle en route, and the consequences thereof.",
+  "The company will not be responsible for any contents packed in cases. It relies only on the owner's description enclosed with the L/R.",
+  "The Transporter does not take responsibility for loss or damage in transit due to accident, theft, burglary, riots and their consequences, as the goods are booked entirely at Owner's Risk.",
+  "The transport operator shall have the right to dispose of perishables lying undelivered 48 hours after arrival, without any notice.",
+  "The Transporter does not take any responsibility for leakage, shortage, breakage, soilage and damage by sun, rain, water, fire and accidents. The sender is responsible for proper packing; breakable goods are carried at Owner's Risk.",
+  "The company will send the goods at the earliest possible, in one lot or in part lots, according to its convenience.",
+  "The consignor shall be primarily liable to pay transport charges and all other charges, if any, at the head office of the transport operator or at any other agreed place.",
+  "Only freight brokers.",
+  "The goods will be delivered to the consignee against payment of all charges to the Transporter or driver.",
+  "If there is any claim on account of the goods receipt, it must be lodged within fifteen days, failing which it will be considered null and void.",
+  "The consignor is responsible for all consequences of any incorrect or false declaration.",
+  "All disputes shall be settled at Rampur jurisdiction only and not at any other place. Any party raising a claim or dispute must come to Rampur for it.",
+  "All expenses such as loading, unloading, union and octroi will have to be borne by the party.",
+  "Once delivery is given and the goods are received in order as specified against the receipt, no claim will be entertained after that.",
+  "GST and all other government taxes are payable by the party.",
+  "Where a party only obtains a bilty from AHM Transport Service, without booking the carriage with us, we only issue the bilty, allot its number and submit the details exactly as the party has filled them in, including its GST details. The party is solely responsible for the information filled in. We are not responsible for what goods are being carried, their contents, value or condition.",
+  "AHM Transport Service is not responsible for any error, omission or inaccuracy in the information filled in a bilty. The party must check every detail, including details read automatically from an invoice or bill, before saving and printing.",
+];

@@ -1,6 +1,6 @@
 import React from "react";
 import BrandMark from "./BrandMark";
-import { TERMS_INTRO, TERMS_SECTIONS } from "../constants/terms";
+import { TERMS, TERMS_SUBTITLE, TERMS_TITLE } from "../constants/terms";
 
 type TermsDocumentProps = {
   printable?: boolean;
@@ -21,32 +21,25 @@ const TermsDocument: React.FC<TermsDocumentProps> = ({
         <div>
           <BrandMark compact dark />
           <h2 className="mt-5 text-2xl font-bold text-slate-900">
-            Terms & Conditions
+            {TERMS_TITLE}
           </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            {TERMS_INTRO}
+          <p className="mt-1 text-sm font-semibold uppercase tracking-wide text-slate-500">
+            {TERMS_SUBTITLE}
           </p>
         </div>
         <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right text-xs font-medium text-slate-500">
           <p>Attachment with Bilty</p>
-          <p>Page 2 of 2</p>
+          <p>Last page of the bilty print</p>
         </div>
       </div>
 
-      <div className="space-y-6">
-        {TERMS_SECTIONS.map((section) => (
-          <div key={section.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <h3 className="text-base font-semibold text-slate-900">
-              {section.title}
-            </h3>
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
-              {section.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </div>
+      <ol className="list-decimal space-y-3 pl-6 text-sm leading-6 text-slate-800">
+        {TERMS.map((term) => (
+          <li key={term} className="pl-1">
+            {term}
+          </li>
         ))}
-      </div>
+      </ol>
 
       <div className="mt-8 grid gap-4 text-sm text-slate-700 sm:grid-cols-2">
         <div className="rounded-2xl border border-dashed border-slate-300 p-4">

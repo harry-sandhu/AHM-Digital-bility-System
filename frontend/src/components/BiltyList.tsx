@@ -259,7 +259,7 @@ const BiltyList: React.FC = () => {
             {role === "superadmin" ? "All Bilties" : "My Bilties"}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Each saved bilty can be downloaded as a 2-page PDF or 2 PNG images.
+            Open a saved bilty with Edit Bilty to print it again.
           </p>
         </div>
         <div className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600">

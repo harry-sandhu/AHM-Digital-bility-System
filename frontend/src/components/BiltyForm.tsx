@@ -13,6 +13,7 @@ import BiltyDocument from "./BiltyDocument";
 import BiltyDownloadButtons, { type PrintCopies } from "./BiltyDownloadButtons";
 import BiltyMobileForm from "./BiltyMobileForm";
 import BiltyRevisionsModal from "./BiltyRevisionsModal";
+import TermsPrintPage from "./TermsPrintPage";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
@@ -509,7 +510,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
       setStatusMessage("");
       showSuccess(
         response.data.message ||
-          "Bilty saved successfully. You can now download the 2-page PDF or PNG copy."
+          "Bilty saved successfully. You can now print it."
       );
     } catch (err: any) {
       if (err?.response?.status === 402 && err.response.data?.code === "EXTRA_PAYMENT_REQUIRED") {
@@ -718,6 +719,10 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
               <BiltyDocument formData={formData} basisCopy />
             </div>
           ) : null}
+          {/* Terms & conditions: printed once, as the last page of the print job */}
+          <div className="print-page print-only-copy">
+            <TermsPrintPage />
+          </div>
         </div>
       </div>
 

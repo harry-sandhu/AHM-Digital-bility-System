@@ -79,7 +79,7 @@ const HomePage: React.FC = () => {
                 {user?.role === "admin" &&
                   "Review all users and bilty records, and support transport operations with a faster digital workflow."}
                 {user?.role === "user" &&
-                  "Create your bilty after accepting the terms & conditions, complete payment, save it digitally, and download the final 2-page PDF or PNG copy anytime."}
+                  "Create your bilty after accepting the terms & conditions, complete payment, save it digitally, and print the bilty with its terms & conditions anytime."}
               </p>
               <div className="mt-6 rounded-card border border-brand-100 bg-brand-50 px-5 py-4 text-sm leading-6 text-brand-800">
                 {hasActivePayment ? (
