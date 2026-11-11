@@ -58,7 +58,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   const { user, role } = useAuth();
   const isEditMode = Boolean(editBiltyId);
   const isSuperadmin = role === "superadmin";
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showToast } = useToast();
   const [formData, setFormData] = useState<BiltyFormState>({
     ...initialBiltyFormData,
     bookingClerk: user?.name || "",
@@ -453,7 +453,8 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           : response.data.message
       );
       if (warnings.length) {
-        showError(`Please double-check: ${warnings.join("; ")}`);
+        // Not an error: the form was filled, these are just things to look at.
+        showToast("info", `Please double-check: ${warnings.join("; ")}`);
       }
     } catch (err: any) {
       setStatusMessage("");

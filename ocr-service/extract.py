@@ -496,7 +496,9 @@ def extract(boxes):
         else:
             # any other goods: the first item's name ("1 ADF R-105" -> "ADF R-105")
             for i in region:
-                name = re.sub(r"^\d+\s+", "", i.text.strip())
+                # drop the row number ("1 ADF R-105"); OCR sometimes glues it on: "1ADF R-105"
+                # (the first item row is always number 1)
+                name = re.sub(r"^(?:\d+\s+|1(?=[A-Z]))", "", i.text.strip())
                 if (re.search(r"[A-Za-z]{3}", name) and not name.startswith("(") and len(name) <= 40
                         and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total)", name)):
                     fields["description"] = name
