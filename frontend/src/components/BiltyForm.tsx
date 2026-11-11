@@ -376,6 +376,25 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     [formData, savedSnapshot, hasSavedBilty]
   );
 
+  /** Keeps the GST Charges box at 5% of freight while the Transporter pays the GST (unless the user typed their own value). */
+  const withAutoGst = (prev: BiltyFormState, next: BiltyFormState): BiltyFormState => {
+    const rateOf = (f: BiltyFormState) => round2(toAmount(f.freight) * GST_CHARGE_RATE);
+    const fmt = (n: number) => (n > 0 ? String(n) : "");
+    const wasAuto =
+      prev.gstPaidBy === "Transporter" && toAmount(prev.gstCharges) === rateOf(prev);
+    const nowTransporter = next.gstPaidBy === "Transporter";
+    if (nowTransporter && prev.gstPaidBy !== "Transporter") {
+      return { ...next, gstCharges: fmt(rateOf(next)) };
+    }
+    if (nowTransporter && wasAuto) {
+      return { ...next, gstCharges: fmt(rateOf(next)) };
+    }
+    if (!nowTransporter && wasAuto) {
+      return { ...next, gstCharges: "" };
+    }
+    return next;
+  };
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -413,7 +432,9 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     }
 
     setFormData((prev) =>
-      calculateBiltyTotals({ ...prev, [name]: applyFieldCase(name, value) })
+      calculateBiltyTotals(
+        withAutoGst(prev, { ...prev, [name]: applyFieldCase(name, value) })
+      )
     );
 
     if (hasSavedBilty) {
@@ -875,7 +896,9 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
                   setGstAck(prompt.required);
                   if (prompt.origin === "select") {
                     // Picked Transporter: apply it now; the charge is recorded when the bilty is saved.
-                    setFormData((prev) => calculateBiltyTotals({ ...prev, gstPaidBy: "Transporter" }));
+                    setFormData((prev) =>
+                      calculateBiltyTotals(withAutoGst(prev, { ...prev, gstPaidBy: "Transporter" }))
+                    );
                     setHasSavedBilty(false);
                     setGstPrompt(null);
                   } else {
