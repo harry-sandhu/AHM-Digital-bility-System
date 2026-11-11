@@ -47,6 +47,12 @@ export const extractBillData = (file: File) => {
   return axiosInstance.post<{
     message: string;
     extractedFields: Record<string, string>;
+    /** Things the reader wasn't sure about (e.g. a GSTIN whose check character doesn't match). */
+    warnings?: string[];
+    /** Fields confirmed against the invoice's QR code. */
+    verified?: string[];
+    /** Set when the photo is too blurry/dark/small to read: nothing was filled. */
+    retake?: string[];
     rawText: string;
   }>("/bilty/extract-bill", body, {
     headers: { "Content-Type": "multipart/form-data" },

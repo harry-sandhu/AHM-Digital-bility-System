@@ -413,8 +413,26 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
 
     try {
       const response = await extractBillData(file);
-      const extractedFields = response.data.extractedFields || {};
+      if (response.data.retake?.length) {
+        // Too blurry / dark / small: nothing was read, ask for a better photo.
+        setStatusMessage("");
+        showError(response.data.message);
+        return;
+      }
+
+      const extractedFields: Record<string, string> = { ...(response.data.extractedFields || {}) };
+
+      // A party whose GSTIN is already saved gets its saved (clean) address
+      // instead of the OCR'd text.
+      const savedFor = (list: SavedContact[], gstin?: string) =>
+        gstin ? list.find((c) => (c.gstin || "").toUpperCase() === gstin.toUpperCase()) : undefined;
+      const savedConsignor = savedFor(consignors, extractedFields.consignorGstin);
+      if (savedConsignor) extractedFields.consignorAddress = savedConsignor.address;
+      const savedConsignee = savedFor(consignees, extractedFields.consigneeGstin);
+      if (savedConsignee) extractedFields.consigneeAddress = savedConsignee.address;
+
       const filledFieldCount = Object.values(extractedFields).filter(Boolean).length;
+      const warnings = response.data.warnings || [];
 
       setFormData((prev) => {
         const next = { ...prev };
@@ -434,6 +452,9 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           ? `${response.data.message} (${filledFieldCount} field${filledFieldCount === 1 ? "" : "s"} filled from the bill.)`
           : response.data.message
       );
+      if (warnings.length) {
+        showError(`Please double-check: ${warnings.join("; ")}`);
+      }
     } catch (err: any) {
       setStatusMessage("");
       showError(err?.response?.data?.error || "Failed to read the uploaded bill");

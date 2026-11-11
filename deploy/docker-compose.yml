@@ -1,0 +1,45 @@
+# Runs on the VPS:  cp .env.example .env  (edit it)  &&  docker compose up -d
+# Only Caddy is reachable from the internet (ports 80/443). The backend and the
+# OCR service live on the private compose network.
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # keeps the HTTPS certificates across restarts
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  backend:
+    image: ghcr.io/${GITHUB_OWNER}/bilty-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "5000"
+      OCR_SERVICE_URL: http://ocr:8787
+      OCR_SERVICE_KEY: ${OCR_KEY}
+    expose:
+      - "5000"
+    mem_limit: 700m
+    depends_on:
+      - ocr
+
+  ocr:
+    image: ghcr.io/${GITHUB_OWNER}/bilty-ocr:latest
+    restart: unless-stopped
+    environment:
+      OCR_KEY: ${OCR_KEY}
+    expose:
+      - "8787"
+    mem_limit: 1200m
+
+volumes:
+  caddy_data:
+  caddy_config:

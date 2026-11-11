@@ -748,6 +748,66 @@ pub async fn extract_bill_data(
         return Err(bad_request("File is too large (10MB maximum)"));
     }
 
+    // Preferred path for photos: the local OCR service reads the invoice by
+    // position. Any failure falls through to the built-in Tesseract path.
+    if content_type != "application/pdf" {
+        if let Some(service) = state.ocr_service.as_ref() {
+            match service.extract(bytes.clone(), &content_type).await {
+                Ok(result) => {
+                    // Only forward known form fields with sane string values.
+                    let fields: serde_json::Map<String, Value> = result
+                        .fields
+                        .into_iter()
+                        .filter(|(key, value)| {
+                            BILTY_FORM_FIELDS.contains(&key.as_str())
+                                && value.as_str().map(|s| s.chars().count() <= MAX_FORM_FIELD_LEN).unwrap_or(false)
+                        })
+                        .collect();
+
+                    if !result.retake.is_empty() {
+                        return Ok(Json(json!({
+                            "message": format!(
+                                "Couldn't read this photo reliably: {}. Please retake it \u{2014} hold the camera steady, fill the frame with the page and use good light.",
+                                result.retake.join(", ")
+                            ),
+                            "extractedFields": {},
+                            "retake": result.retake,
+                            "warnings": [],
+                            "verified": [],
+                            "rawText": "",
+                        })));
+                    }
+
+                    let message = if fields.is_empty() {
+                        "Couldn't confidently read any fields from this bill. Please fill the form manually.".to_string()
+                    } else if result.verified.is_empty() {
+                        format!(
+                            "Read {} fields from the invoice. Please check every field before saving.",
+                            fields.len()
+                        )
+                    } else {
+                        format!(
+                            "Read {} fields from the invoice; {} confirmed against its QR code. Please check the rest before saving.",
+                            fields.len(),
+                            result.verified.len()
+                        )
+                    };
+
+                    return Ok(Json(json!({
+                        "message": message,
+                        "extractedFields": fields,
+                        "warnings": result.warnings,
+                        "verified": result.verified,
+                        "rawText": result.raw_text,
+                    })));
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "OCR service failed; falling back to built-in OCR");
+                }
+            }
+        }
+    }
+
     let raw_text = if content_type == "application/pdf" {
         let pdfium = state
             .pdfium

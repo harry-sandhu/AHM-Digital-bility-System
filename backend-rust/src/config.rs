@@ -7,6 +7,9 @@ pub struct Config {
     pub allowed_origins: Vec<String>,
     pub superadmin_phone: Option<String>,
     pub superadmin_password: Option<String>,
+    /// Base URL of the local OCR service, e.g. http://127.0.0.1:8787. Optional.
+    pub ocr_service_url: Option<String>,
+    pub ocr_service_key: Option<String>,
 }
 
 impl Config {
@@ -42,6 +45,8 @@ impl Config {
             allowed_origins,
             superadmin_phone: env::var("SUPERADMIN_PHONE").ok(),
             superadmin_password: env::var("SUPERADMIN_PASSWORD").ok(),
+            ocr_service_url: env::var("OCR_SERVICE_URL").ok().filter(|v| !v.trim().is_empty()),
+            ocr_service_key: env::var("OCR_SERVICE_KEY").ok().filter(|v| !v.is_empty()),
         })
     }
 }

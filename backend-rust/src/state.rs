@@ -1,4 +1,4 @@
-use crate::utils::ocr::OcrPool;
+use crate::utils::{ocr::OcrPool, ocr_service::OcrServiceClient};
 use mongodb::Database;
 use pdfium_render::prelude::Pdfium;
 use std::sync::Arc;
@@ -14,4 +14,6 @@ pub struct AppState {
     /// refusing to boot just because PDF support is unavailable; image
     /// uploads are unaffected either way.
     pub pdfium: Option<Arc<Pdfium>>,
+    /// Local invoice-reading OCR service; `None` = use the built-in Tesseract path only.
+    pub ocr_service: Option<OcrServiceClient>,
 }

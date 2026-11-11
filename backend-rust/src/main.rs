@@ -59,12 +59,21 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let ocr_service = match config.ocr_service_url.as_deref() {
+        Some(url) => {
+            tracing::info!(%url, "OCR service configured for invoice scanning");
+            Some(utils::ocr_service::OcrServiceClient::new(url, config.ocr_service_key.clone())?)
+        }
+        None => None,
+    };
+
     let state = Arc::new(AppState {
         db,
         jwt_secret: config.jwt_secret.clone(),
         allowed_origins: config.allowed_origins.clone(),
         ocr_pool,
         pdfium,
+        ocr_service,
     });
 
     let cors = build_cors_layer(&config.allowed_origins);

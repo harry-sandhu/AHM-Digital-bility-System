@@ -1,0 +1,13 @@
+# Automatic HTTPS (Let's Encrypt) for the API domain, then hand requests to the backend.
+{$API_DOMAIN} {
+	encode gzip
+
+	# bill scans are limited to 10 MB by the backend; a little headroom here
+	request_body {
+		max_size 12MB
+	}
+
+	# Caddy sets X-Forwarded-For to the real client address (it does not trust
+	# the incoming header), which the backend's rate limiter reads.
+	reverse_proxy backend:5000
+}

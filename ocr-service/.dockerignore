@@ -1,0 +1,6 @@
+venv/
+models/
+__pycache__/
+*.md
+test_*.py
+run_boxes_eval.py
