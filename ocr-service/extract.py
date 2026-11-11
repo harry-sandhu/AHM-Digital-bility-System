@@ -39,6 +39,16 @@ def parse_amounts(text):
         out.append((int(digits[:-2]) + int(digits[-2:]) / 100.0, bool(_STRICT_AMOUNT.match(raw))))
     return out
 PCS_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*P[CGO]S", re.I)
+_PIECE_UNITS = {"PCS", "PGS", "PCO", "NOS", "NO", "BAG", "BAGS", "BOX", "BOXES", "CTN", "BDL", "ROLL", "ROLLS"}
+_WEIGHT_UNITS = {"KG": "KG", "KGS": "KG", "MT": "MT", "MTS": "MT", "QTL": "QTL"}
+QTY_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(P[CGO]S|NOS?|KGS?|MTS?|QTL|BAGS?|BOXES|BOX|SQMT|SQM|LTRS?|CTN|BDL|ROLLS?)(?![A-Za-z])", re.I)
+UNIT_WORD = re.compile(r"\b(?:P[CGO]S|NOS?|KGS?|MTS?|QTL|BAGS?|BOXES|BOX|SQ?MT|SQM|LTRS?|CTN|BDL|ROLLS?)\b", re.I)
+PACKS_RE = re.compile(r"(\d+)\s*(BAGS?|BOXES|BOX|CARTONS?|DRUMS?|ROLLS?|BUNDLES?|PKTS?)\s*[X\u00d7]\s*\d", re.I)
+
+
+def _num(text):
+    v = float(text.replace(",", ""))
+    return str(int(v)) if v == int(v) else f"{v:g}"
 
 # characters OCR commonly swaps, by the kind of character the position needs
 _TO_DIGIT = {"O": "0", "Q": "0", "D": "0", "I": "1", "L": "1", "S": "5", "B": "8", "Z": "2", "G": "6", "T": "7"}
@@ -277,7 +287,7 @@ def _norm_text(t):
 
 # --------------------------------------------------------------- extract ---
 
-_STOP_ADDR = re.compile(r"^(mob|gstin|gst\s*no|st\w{2,4}\s*name|msme|cin\s*[UL]\d|e-?\s?mail|pan\b|udyam|code\s*:)", re.I)
+_STOP_ADDR = re.compile(r"^(mob|gstin|gst\s*no|st\w{2,4}\s*name|msme|cin\s*[UL]\d|e-?\s?mail|pan\b|udyam|code\s*:|place\s*of\s*supply)", re.I)
 _LABELS = re.compile(r"motor|vehicle|terms|bill\s*of|delivery|dispatch|destination|mode|reference|other|buyer", re.I)
 
 
@@ -328,6 +338,7 @@ def extract(boxes):
     cons_lbl = page.anchor_any(["consigneeshipto", "shipto", "deliveryaddressshipto", "shippedto", "consignee"])
     buyer_lbl = page.anchor_any(["buyerbillto", "billto", "billedto", "buyer"], 0.72)
     desc_hdr = page.anchor_any(["descriptionofgoods", "descriptionofgoodsandservices", "particulars", "itemdescription"])
+    title = next(iter(page.find(r"^TaxInvoice")), None)
 
     # left edge of the right-hand column of header boxes (Invoice No., Delivery Note, ...)
     col_lbl = inv_label or next(iter(page.find(r"^DeliveryNote|^Buyer.?sOrder|^DispatchDoc")), None)
@@ -335,14 +346,16 @@ def extract(boxes):
 
     left_x1 = (col_x0 - 12) if col_x0 is not None else 1e9
 
-    # ---- seller (consignor): the block above "Consignee (Ship to)" ----
-    if cons_lbl and (ack or inv_label):
-        top = (ack.y1 if ack else inv_label.y0) + 4
-        block = [i for i in page.region(x1=left_x1, y0=top, y1=cons_lbl.y0 - 2)]
+    # ---- seller (consignor): the block above the first party label ----
+    # (not every invoice has an "Ack Date" or a separate "Consignee (Ship to)" block)
+    first_party = min((l.y0 for l in (cons_lbl, buyer_lbl) if l is not None), default=None)
+    if first_party is not None and (ack or title or inv_label):
+        top = (ack.y1 if ack else title.y1 if title else inv_label.y0) + 4
+        block = [i for i in page.region(x1=left_x1, y0=top, y1=first_party - 2)]
         lines = _block_lines(block)
         if lines:
             name, addr, _, gst = _party(lines)
-            addr = addr[:2]
+            addr = addr[:4]
             fields["consignorAddress"] = "\n".join([clean_company(name)] + addr) if name else None
             if gst[0]:
                 fields["consignorGstin"] = gst[0]
@@ -350,10 +363,17 @@ def extract(boxes):
                 if w:
                     warn.append(w)
 
-    # ---- consignee: block between "Consignee (Ship to)" and "Buyer (Bill to)" ----
+    # ---- consignee: the "Consignee (Ship to)" block, or (when the invoice has none) the Buyer (Bill to) ----
+    party_lbl, bottom = None, None
     if cons_lbl:
+        party_lbl = cons_lbl
         bottom = buyer_lbl.y0 - 2 if buyer_lbl else cons_lbl.y1 + 200
-        block = page.region(x1=left_x1, y0=cons_lbl.y1 - 1, y1=bottom)
+    elif buyer_lbl:
+        party_lbl = buyer_lbl
+        bottom = (desc_hdr.y0 - 2) if desc_hdr else buyer_lbl.y1 + 260
+        warn.append("consignee: this invoice has no Ship-to block, so the Buyer (Bill to) was used - please check it")
+    if party_lbl:
+        block = page.region(x1=left_x1, y0=party_lbl.y1 - 1, y1=bottom)
         lines = _block_lines(block)
         if lines:
             name, addr, mobile, gst = _party(lines)
@@ -427,20 +447,26 @@ def extract(boxes):
                 fields["to"] = tidy(i.text).title()
                 break
 
-    # ---- totals: the "Total" row that carries a PCS quantity ----
+    # ---- totals: the "Total" row that carries a quantity (pieces, kg, ...) ----
     if desc_hdr:
         for t in page.find(r"^Total", below=desc_hdr.y1):
             row = [i for i in page.items if abs(i.cy - t.cy) < max(10, t.h * 0.8)]
             joined = " ".join(i.text for i in sorted(row, key=lambda i: i.x0))
-            pcs = PCS_RE.search(joined)
-            if not pcs:
-                continue
-            fields["packages"] = str(int(float(pcs.group(1).replace(",", ""))))
+            # first quantity in pieces or weight (an area like "1,591.075 SQM" can sit right next to it)
+            qty = next((m for m in QTY_RE.finditer(joined)
+                        if m.group(2).upper() in _PIECE_UNITS or m.group(2).upper() in _WEIGHT_UNITS), None)
+            if not qty:
+                continue          # e.g. the tax-summary "Total" row has amounts but no quantity
+            unit = qty.group(2).upper()
+            if unit in _PIECE_UNITS:
+                fields["packages"] = str(int(float(qty.group(1).replace(",", ""))))
+            elif unit in _WEIGHT_UNITS:
+                fields["actualWt"] = f"{_num(qty.group(1))} {_WEIGHT_UNITS[unit]}"
             # The grand total is printed in the same band as the "Total" label,
             # but photo perspective can shift it up or down by a line, so take
-            # the largest money amount in a small band (never a PCS/SQM quantity).
+            # the largest money amount in a small band (never a quantity).
             window = [i for i in page.items if t.cy - 26 <= i.cy <= t.cy + 30 and i.x0 > t.x1
-                      and not re.search(r"P[CGO]S|SQM|SQ?MT", i.text, re.I)]
+                      and not UNIT_WORD.search(i.text)]
             cands = [c for i in window for c in parse_amounts(i.text)]
             if cands:
                 v, well_formed = max(cands, key=lambda c: c[0])
@@ -454,8 +480,9 @@ def extract(boxes):
         for stop in page.find(r"^(OUTPUT|IGST|CGST|Total)", below=desc_hdr.y1 + 20):
             end = stop.y0
             break
-        names = [i.text for i in page.region(x0=desc_hdr.x0 - 130, x1=desc_hdr.x1 + 60,
-                                             y0=desc_hdr.y1 + 8, y1=(end or desc_hdr.y1 + 600))
+        region = page.region(x1=desc_hdr.x1 + 60,   # item names can sit well left of the header text
+                             y0=desc_hdr.y1 + 8, y1=(end or desc_hdr.y1 + 600))
+        names = [i.text for i in region
                  if re.search(r"(mm|plywood|ply|board|door|block)", i.text, re.I) and re.search(r"[A-Za-z]{3}", i.text)]
         kinds = []
         for n in names:
@@ -466,6 +493,22 @@ def extract(boxes):
                 kinds.append(kind)
         if kinds:
             fields["description"] = " / ".join(kinds)
+        else:
+            # any other goods: the first item's name ("1 ADF R-105" -> "ADF R-105")
+            for i in region:
+                name = re.sub(r"^\d+\s+", "", i.text.strip())
+                if (re.search(r"[A-Za-z]{3}", name) and not name.startswith("(") and len(name) <= 40
+                        and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total)", name)):
+                    fields["description"] = name
+                    break
+        # "(280 BAGS X 25 KGS)" in the item text -> number of packages and how they are packed
+        for i in region:
+            m = PACKS_RE.search(i.text)
+            if m:
+                fields.setdefault("packages", m.group(1))
+                unit = m.group(2).title()
+                fields["methodOfPacking"] = unit if unit.endswith("s") else unit + "s"
+                break
 
     fields = {k: v for k, v in fields.items() if v}
     anchors = sum(1 for a in (inv_label, cons_lbl, buyer_lbl, desc_hdr, veh_lbl) if a is not None)

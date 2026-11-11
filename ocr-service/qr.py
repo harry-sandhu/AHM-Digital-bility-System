@@ -7,6 +7,7 @@ a 2-page invoice). When it can't be read, nothing changes.
 """
 import base64
 import json
+import os
 import time
 from datetime import datetime
 
@@ -40,9 +41,11 @@ def _candidates(img):
             yield c.point(lambda v: 255 if v > 140 else 0)
 
 
-def decode_einvoice(img, budget_s=1.5):
+def decode_einvoice(img, budget_s=None):
     """PIL image -> dict(docNo, docDate(ISO), sellerGstin, buyerGstin, total, items) or None.
-    Gives up after `budget_s` seconds: most photos either decode quickly or have no readable QR."""
+    Gives up after `budget_s` seconds (default 0.7): most photos either decode quickly or have no readable QR."""
+    if budget_s is None:
+        budget_s = float(os.environ.get("OCR_QR_BUDGET", "0.7"))
     gray = img.convert("L")
     deadline = time.time() + budget_s
     for cand in _candidates(gray):

@@ -13,6 +13,10 @@ MIN_BRIGHTNESS = float(__import__("os").environ.get("OCR_MIN_BRIGHTNESS", "70"))
 # Compare edge strength along 4 directions: a sharp page is fairly even (real
 # photos here: 0.48-0.73), a shaken one is lopsided (typically ~0.3).
 MIN_DIRECTION_RATIO = float(__import__("os").environ.get("OCR_MIN_DIRECTION_RATIO", "0.38"))
+# Pristine digital pages (PDF renders, screenshots, flatbed scans) are far sharper than any
+# photo and are all straight lines, which looks "lopsided" to the shake test. Real shaken
+# photos measure well below this, so only test for shake when the image isn't that crisp.
+SHAKE_TEST_MAX_SHARPNESS = float(__import__("os").environ.get("OCR_SHAKE_MAX_SHARPNESS", "2500"))
 MIN_LONG_SIDE = int(__import__("os").environ.get("OCR_MIN_LONG_SIDE", "900"))
 
 
@@ -47,7 +51,7 @@ def assess(img):
     reasons = []
     if sharp < MIN_SHARPNESS:
         reasons.append("the photo is blurry")
-    elif ratio < MIN_DIRECTION_RATIO:
+    elif ratio < MIN_DIRECTION_RATIO and sharp < SHAKE_TEST_MAX_SHARPNESS:
         reasons.append("the photo is blurred by camera shake")
     if bright < MIN_BRIGHTNESS:
         reasons.append("the photo is too dark")

@@ -748,9 +748,10 @@ pub async fn extract_bill_data(
         return Err(bad_request("File is too large (10MB maximum)"));
     }
 
-    // Preferred path for photos: the local OCR service reads the invoice by
-    // position. Any failure falls through to the built-in Tesseract path.
-    if content_type != "application/pdf" {
+    // Preferred path for photos and PDFs: the local OCR service reads the invoice
+    // by position (digital PDFs are read from their text layer, no OCR). Any
+    // failure falls through to the built-in path below.
+    {
         if let Some(service) = state.ocr_service.as_ref() {
             match service.extract(bytes.clone(), &content_type).await {
                 Ok(result) => {

@@ -1,7 +1,8 @@
 FROM python:3.12-slim-bookworm
 
 # libgl1 / libglib2.0-0: OpenCV (a RapidOCR dependency) needs them on slim images.
-RUN apt-get update && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 \
+# poppler-utils: reads the text layer of digital PDF invoices and renders scanned PDF pages.
+RUN apt-get update && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \

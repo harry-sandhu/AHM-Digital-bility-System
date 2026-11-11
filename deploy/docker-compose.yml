@@ -1,6 +1,13 @@
 # Runs on the VPS:  cp .env.example .env  (edit it)  &&  docker compose up -d
 # Only Caddy is reachable from the internet (ports 80/443). The backend and the
 # OCR service live on the private compose network.
+# Docker keeps container logs forever by default; cap them so they can't fill the disk.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   caddy:
     image: caddy:2
@@ -14,6 +21,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data        # keeps the HTTPS certificates across restarts
       - caddy_config:/config
+    logging: *logging
     depends_on:
       - backend
 
@@ -27,7 +35,8 @@ services:
       OCR_SERVICE_KEY: ${OCR_KEY}
     expose:
       - "5000"
-    mem_limit: 700m
+    mem_limit: 400m          # idle ~100 MB; sized so everything fits a 2 GB server
+    logging: *logging
     depends_on:
       - ocr
 
@@ -38,7 +47,10 @@ services:
       OCR_KEY: ${OCR_KEY}
     expose:
       - "8787"
-    mem_limit: 1200m
+    mem_limit: 900m          # peaks ~550 MB while reading a photo
+    cpu_shares: 256          # lower CPU priority than the backend (default 1024), so logins/saves stay snappy
+                             # while a scan runs. (Not a hard `cpus:` quota: that throttles the OCR badly.)
+    logging: *logging
 
 volumes:
   caddy_data:

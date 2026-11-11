@@ -17,6 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(__file__))
 import ocr_engine  # noqa: E402
+import pdf_reader  # noqa: E402
 import qr as qr_reader  # noqa: E402
 import quality  # noqa: E402
 from extract import extract  # noqa: E402
@@ -64,6 +65,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(413, {"error": "image too large"})
         data = self.rfile.read(length)
         t0 = time.time()
+        if data[:5] == b"%PDF-" or "pdf" in (self.headers.get("Content-Type") or "").lower():
+            try:
+                result = pdf_reader.read_pdf(data)
+            except Exception as exc:
+                return self._send(400, {"error": f"could not read the PDF ({type(exc).__name__})"})
+            result.update(rawText="", ms=round((time.time() - t0) * 1000))
+            return self._send(200, result)
         try:
             image = ocr_engine.open_image(data)
         except Exception:  # undecodable image
