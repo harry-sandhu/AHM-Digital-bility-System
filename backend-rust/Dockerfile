@@ -29,7 +29,7 @@ RUN curl -sL -o /tmp/pdfium.tgz \
     && rm /tmp/pdfium.tgz
 
 WORKDIR /app
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml Cargo.lock build.rs ./
 COPY src ./src
 RUN cargo build --release
 

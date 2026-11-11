@@ -18,7 +18,20 @@ use tower_http::cors::CorsLayer;
 use tracing_subscriber::EnvFilter;
 
 async fn health() -> Json<Value> {
-    Json(json!({ "status": "ok" }))
+    // Commit may also come from the host at runtime (e.g. Render sets RENDER_GIT_COMMIT).
+    let commit = match option_env!("BUILD_COMMIT") {
+        Some(c) if c != "unknown" => c.to_string(),
+        _ => std::env::var("RENDER_GIT_COMMIT")
+            .map(|v| v.chars().take(7).collect())
+            .unwrap_or_else(|_| "unknown".to_string()),
+    };
+    Json(json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        "commit": commit,
+        // Lets us confirm a deploy really contains a feature.
+        "features": ["transporter-gst-5pct", "gst-credit", "terms-print", "invoice-scan"],
+    }))
 }
 
 async fn root() -> &'static str {
