@@ -27,6 +27,7 @@ const SuggestionRow: React.FC<{
   onDeleted: (id: string) => void;
 }> = ({ item, onSaved, onDeleted }) => {
   const { showSuccess, showError } = useToast();
+  const unreadable = item.kind === "unreadable";
   const hasGstin = item.kind === "consignor" || item.kind === "consignee";
   const [draft, setDraft] = useState<Draft>({ address: item.address, gstin: item.gstin || "" });
   const [busy, setBusy] = useState(false);
@@ -67,11 +68,41 @@ const SuggestionRow: React.FC<{
     }
   };
 
+  if (unreadable) {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+        <p className="text-sm font-semibold text-amber-900">Not a usable suggestion</p>
+        <p className="mt-1 text-xs text-amber-800">
+          This record is in the same collection but can't be read as a suggestion
+          {item.reason ? ` (${item.reason})` : ""}. Users never see it in the dropdowns.
+        </p>
+        <dl className="mt-3 grid gap-1 text-xs text-slate-700">
+          {Object.entries(item.fields || {}).map(([name, value]) => (
+            <div key={name} className="flex gap-2">
+              <dt className="min-w-28 font-semibold">{name}</dt>
+              <dd className="break-all">{value || "—"}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={busy}
+            className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700 disabled:opacity-50"
+          >
+            Delete this record
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-full bg-brand-50 px-3 py-1 font-semibold text-brand-700">
-          {KIND_LABELS[item.kind]}
+          {item.kind === "unreadable" ? "" : KIND_LABELS[item.kind]}
         </span>
         <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
           {item.ownerType === "group" ? "Group" : "User"}: {item.ownerName}
@@ -125,7 +156,7 @@ const SuggestionsPage: React.FC = () => {
   const { showError } = useToast();
   const [items, setItems] = useState<ManagedSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [kind, setKind] = useState<SuggestionKind | "all">("all");
+  const [kind, setKind] = useState<SuggestionKind | "unreadable" | "all">("all");
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -134,6 +165,8 @@ const SuggestionsPage: React.FC = () => {
       .catch((err) => showError(getApiErrorMessage(err, "Failed to load suggestions")))
       .finally(() => setLoading(false));
   }, []);
+
+  const unreadableCount = useMemo(() => items.filter((item) => item.kind === "unreadable").length, [items]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -162,7 +195,7 @@ const SuggestionsPage: React.FC = () => {
 
           <div className="mt-5 grid gap-3 md:grid-cols-[1fr_16rem]">
             <div className="flex flex-wrap gap-2">
-              {(["all", ...KINDS] as const).map((option) => (
+              {(["all", ...KINDS, ...(unreadableCount > 0 ? (["unreadable"] as const) : [])] as const).map((option) => (
                 <button
                   key={option}
                   type="button"
@@ -173,7 +206,11 @@ const SuggestionsPage: React.FC = () => {
                       : "border border-slate-200 bg-white text-slate-700"
                   }`}
                 >
-                  {option === "all" ? "All" : KIND_LABELS[option]}
+                  {option === "all"
+                    ? "All"
+                    : option === "unreadable"
+                      ? `Unreadable (${unreadableCount})`
+                      : KIND_LABELS[option]}
                 </button>
               ))}
             </div>

@@ -9,9 +9,13 @@ export interface SavedContact {
 }
 
 export interface ManagedSuggestion extends SavedContact {
-  kind: SuggestionKind;
-  ownerType: "user" | "group";
+  /** "unreadable" = a record in the contacts collection that is not a valid suggestion (e.g. no kind). */
+  kind: SuggestionKind | "unreadable";
+  ownerType: "user" | "group" | "unknown";
   ownerName: string;
+  /** Only for "unreadable" records: why it can't be read, and what fields it has. */
+  reason?: string;
+  fields?: Record<string, string>;
 }
 
 /** The current user's own (or their group's) saved suggestions of one kind. */

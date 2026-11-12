@@ -224,13 +224,17 @@ pub async fn list_all_contacts(
         .await?
         .try_collect()
         .await?;
-    let total = raw.len();
-    let contacts: Vec<Contact> = raw
-        .into_iter()
-        .filter_map(|d| mongodb::bson::from_document::<Contact>(d).ok())
-        .collect();
-    if contacts.len() != total {
-        tracing::warn!(skipped = total - contacts.len(), "contacts: skipped records that could not be read");
+    let mut contacts: Vec<Contact> = Vec::new();
+    // (raw record, why it could not be read) - shown to the superadmin so they can see what these are and delete them.
+    let mut unreadable: Vec<(Document, String)> = Vec::new();
+    for d in raw {
+        match mongodb::bson::from_document::<Contact>(d.clone()) {
+            Ok(c) => contacts.push(c),
+            Err(e) => unreadable.push((d, e.to_string())),
+        }
+    }
+    if !unreadable.is_empty() {
+        tracing::warn!(count = unreadable.len(), "contacts: records that could not be read as suggestions");
     }
 
     let user_names: HashMap<ObjectId, String> = state
@@ -273,6 +277,31 @@ pub async fn list_all_contacts(
             })
         })
         .collect();
+
+    let mut rows = rows;
+    for (d, reason) in &unreadable {
+        let fields: serde_json::Map<String, serde_json::Value> = d
+            .iter()
+            .filter(|(k, _)| k.as_str() != "_id")
+            .map(|(k, v)| {
+                let shown = match v {
+                    mongodb::bson::Bson::String(t) => t.chars().take(80).collect::<String>(),
+                    other => format!("{:?}", other.element_type()),
+                };
+                (k.clone(), serde_json::Value::String(shown))
+            })
+            .collect();
+        rows.push(json!({
+            "id": d.get_object_id("_id").map(|o| o.to_hex()).unwrap_or_default(),
+            "kind": "unreadable",
+            "address": "",
+            "gstin": null,
+            "ownerType": "unknown",
+            "ownerName": "—",
+            "reason": reason,
+            "fields": fields,
+        }));
+    }
 
     Ok(Json(rows))
 }
