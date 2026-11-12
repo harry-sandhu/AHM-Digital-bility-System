@@ -67,6 +67,13 @@ Project → Settings → Environment Variables → set `VITE_API_URL=https://api
 Keep Render running until you've tried login, saving, printing and a bill scan on the new setup.
 **Rollback** = set `VITE_API_URL` back to the Render URL and redeploy.
 
+## Automatic deploys (push to `production`)
+Pushing to the `production` branch builds the images and then updates the VPS by running `deploy/deploy.sh`
+there (pull the code, `docker compose pull && up -d`, wait for the health check). Pushes to `main` only
+build images. GitHub secrets needed (Settings -> Secrets and variables -> Actions): `VPS_HOST`, `VPS_USER`,
+`VPS_SSH_KEY` (a dedicated key, locked on the server to run only `deploy.sh`), `VPS_KNOWN_HOSTS`.
+No process manager such as pm2 is needed: every service has `restart: unless-stopped`.
+
 ## Day to day
 - **Update:** after pushing code and seeing the green GitHub run: `cd /opt/bilty/deploy && docker compose pull && docker compose up -d`
 - **Look at memory:** `docker stats --no-stream` and `free -h`
