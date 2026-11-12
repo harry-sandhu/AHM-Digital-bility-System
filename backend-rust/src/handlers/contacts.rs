@@ -214,14 +214,24 @@ pub async fn list_all_contacts(
         filter.insert("kind", kind_str(kind));
     }
 
-    let contacts: Vec<Contact> = state
+    // Read as raw documents and skip any that don't parse (e.g. an old record with no `kind`), so one
+    // bad record can't turn the whole Suggestions page into a 500.
+    let raw: Vec<Document> = state
         .db
-        .collection::<Contact>("contacts")
+        .collection::<Document>("contacts")
         .find(filter)
         .sort(doc! { "kind": 1, "address": 1 })
         .await?
         .try_collect()
         .await?;
+    let total = raw.len();
+    let contacts: Vec<Contact> = raw
+        .into_iter()
+        .filter_map(|d| mongodb::bson::from_document::<Contact>(d).ok())
+        .collect();
+    if contacts.len() != total {
+        tracing::warn!(skipped = total - contacts.len(), "contacts: skipped records that could not be read");
+    }
 
     let user_names: HashMap<ObjectId, String> = state
         .db
