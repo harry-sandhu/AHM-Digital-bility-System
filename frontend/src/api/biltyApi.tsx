@@ -64,6 +64,8 @@ export const extractBillData = (file: File) => {
     rawText: string;
   }>("/bilty/extract-bill", body, {
     headers: { "Content-Type": "multipart/form-data" },
+    // Reading a bill can take a while on a slow server; the backend gives up after 90 s, so wait a little longer.
+    timeout: 100_000,
   });
 };
 
