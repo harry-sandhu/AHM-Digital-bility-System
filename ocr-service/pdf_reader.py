@@ -23,6 +23,9 @@ DPI = 150
 SCALE = DPI / 72.0          # PDF points -> pixels at 150 dpi: the reader's tolerances assume ~150 dpi pages
 MAX_PAGES = 4
 MIN_WORDS_FOR_TEXT_PAGE = 15
+# A page read with OCR is slow, so once one of them clearly is the invoice (these fields found,
+# most layout anchors present) the remaining pages - usually other copies of the same invoice - are skipped.
+GOOD_ENOUGH_FIELDS = ("invoiceNoDate", "declaredValue")
 
 _LINE = re.compile(r'<line xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">(.*?)</line>', re.S)
 _WORD = re.compile(r'<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">(.*?)</word>', re.S)
@@ -71,6 +74,11 @@ def render_page(path, page):
         return Image.open(prefix + ".png").convert("RGB")
 
 
+def _good_enough(r):
+    has_party = bool(r["fields"].get("consigneeAddress") or r["fields"].get("consignorAddress"))
+    return r.get("anchors", 0) >= 4 and has_party and all(r["fields"].get(k) for k in GOOD_ENOUGH_FIELDS)
+
+
 def read_pdf(data):
     """PDF bytes -> {"fields", "extra", "warnings", "verified", "pages": [...]}"""
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
@@ -87,6 +95,8 @@ def read_pdf(data):
             r = extract(boxes)
             r["page"], r["source"] = p, source
             pages.append(r)
+            if source == "ocr" and p < n and _good_enough(r):
+                break
 
         # the invoice page = the one where the most layout anchors were found
         ranked = sorted(pages, key=lambda r: (r.get("anchors", 0), len(r["fields"])), reverse=True)
