@@ -45,6 +45,11 @@ services:
     restart: unless-stopped
     environment:
       OCR_KEY: ${OCR_KEY}
+      # This VPS's CPU has no AVX and the host steals ~40% of it: the accurate model took 70-110 s per scan,
+      # the light one ~5 s (97% vs 100% of fields on the test photos). Delete these two lines to go back to
+      # the accurate model once the server has a proper CPU.
+      OCR_MODEL_DIR: /app/models-light
+      OCR_REC_HEIGHT: "32"
     expose:
       - "8787"
     mem_limit: 900m          # peaks ~550 MB while reading a photo

@@ -95,6 +95,8 @@ def _get_engine():
             # Per-line 180-degree check. Photos are already upright (EXIF handled), so it only costs time.
             use_angle_cls=os.environ.get("OCR_ANGLE_CLS", "0") == "1",
             rec_batch_num=int(os.environ.get("OCR_REC_BATCH", "6")),
+            # Height the recognition model is fed (48 for the PP-OCRv3 model; the light v2 model wants 32).
+            rec_img_shape=[3, int(os.environ.get("OCR_REC_HEIGHT", "48")), 320],
         )
         if os.path.exists(rec) and os.path.exists(keys):
             kwargs.update(rec_model_path=rec, rec_keys_path=keys)
