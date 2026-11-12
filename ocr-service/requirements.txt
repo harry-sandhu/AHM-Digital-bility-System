@@ -3,5 +3,8 @@
 # recognition model is fetched by download_models.sh.
 rapidocr-onnxruntime==1.2.3
 zxing-cpp
-numpy
+# The VPS exposes a basic virtual CPU ("Common KVM processor": SSE3 only, no SSE4/AVX). NumPy 2.x and
+# OpenCV 5 need newer instructions and crash at import there, so stay on the 1.x / 4.x lines.
+numpy==1.26.4
+opencv-python==4.11.0.86
 pillow
