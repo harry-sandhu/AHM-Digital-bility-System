@@ -135,14 +135,65 @@ def _release_memory():
         pass
 
 
-def ocr_boxes(data) -> list[dict]:
+def estimate_skew(img: Image.Image, span: float = 30.0, step: float = 1.0) -> float:
+    """Degrees to rotate the picture (PIL convention, counter-clockwise) so its text lines run horizontally.
+
+    Classic projection-profile method on a small copy: the angle where the rows of ink are the
+    most uneven is the one where the text lines are level. ~25 ms; accurate to about 0.3 degrees.
+    """
+    import cv2
+
+    g = np.asarray(img.convert("L"))
+    g = cv2.resize(g, None, fx=600 / max(g.shape), fy=600 / max(g.shape), interpolation=cv2.INTER_AREA)
+    g = cv2.GaussianBlur(g, (3, 3), 0)
+    bw = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 25, 12)
+    h, w = bw.shape
+
+    def score(a: float) -> float:
+        r = cv2.warpAffine(bw, cv2.getRotationMatrix2D((w / 2, h / 2), a, 1.0), (w, h), flags=cv2.INTER_NEAREST)
+        return float(np.sum(np.diff(r.sum(axis=1).astype(np.float64)) ** 2))
+
+    coarse = np.arange(-span, span + 0.01, step)
+    best = float(coarse[int(np.argmax([score(a) for a in coarse]))])
+    fine = np.arange(best - step, best + step + 0.01, 0.25)
+    return float(fine[int(np.argmax([score(a) for a in fine]))])
+
+
+def straighten(img: Image.Image) -> Image.Image:
+    """Rotate a clearly tilted page upright before reading. A tilt under OCR_STRAIGHTEN_MIN degrees is left
+    alone (rotating blurs the text a little, which costs more than a slight tilt does). 0 turns it off."""
+    limit = float(os.environ.get("OCR_STRAIGHTEN_MIN", "5"))
+    if limit <= 0:
+        return img
+    try:
+        angle = estimate_skew(img)
+    except Exception:
+        return img
+    if abs(angle) < limit:
+        return img
+    return img.rotate(angle, expand=True, fillcolor=(255, 255, 255), resample=Image.BICUBIC)
+
+
+def ocr_boxes(data, detail: int | None = None) -> list[dict]:
     """[{text, conf, pts:[[x,y]*4]}] in reading-agnostic order.
-    Accepts raw image bytes or an already-opened PIL image."""
-    arr = _to_array(data) if isinstance(data, Image.Image) else load_image(data)
+    Accepts raw image bytes or an already-opened PIL image.
+
+    `detail` overrides, for this call only, the size the picture is scaled to for text-line detection
+    (OCR_DET_LIMIT, 1100 by default). Larger finds smaller print (dates, IRN lines on a dense A4 page)
+    but is slower, so it is used for a second read only when something important was missed."""
+    img = data if isinstance(data, Image.Image) else open_image(data)
+    arr = _to_array(straighten(img))
     with _lock:  # one OCR at a time: bounds memory on a small VPS
+        eng = _get_engine()
+        op = eng.text_detector.preprocess_op[0]
+        saved = getattr(op, "limit_side_len", None)
+        if detail:
+            op.limit_side_len = detail
         try:
-            result, _ = _get_engine()(arr)
+            result, _ = eng(arr)
         finally:
+            if detail and saved is not None:
+                op.limit_side_len = saved
             del arr
             _release_memory()
     return [

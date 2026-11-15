@@ -15,6 +15,7 @@ import tempfile
 from PIL import Image
 
 import ocr_engine
+import reader
 import qr as qr_reader
 from extract import extract
 from reconcile import reconcile
@@ -91,8 +92,9 @@ def read_pdf(data):
             boxes, source = text_boxes(path, p), "text"
             if boxes is None:
                 source = "ocr"
-                boxes = ocr_engine.ocr_boxes(render_page(path, p))
-            r = extract(boxes)
+                boxes, r = reader.read(render_page(path, p))
+            else:
+                r = extract(boxes)
             r["page"], r["source"] = p, source
             pages.append(r)
             if source == "ocr" and p < n and _good_enough(r):

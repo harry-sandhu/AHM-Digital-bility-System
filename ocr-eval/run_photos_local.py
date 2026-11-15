@@ -7,12 +7,11 @@ and write data/preds_local.json for score.py.
 import glob, json, os, sys, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "ocr-service"))
-import ocr_engine  # noqa: E402
-from extract import extract  # noqa: E402
+import ocr_engine, reader  # noqa: E402
 
 preds, t0 = {}, time.time()
 for path in sorted(glob.glob(f"{HERE}/data/img*.jpeg")):
-    r = extract(ocr_engine.ocr_boxes(ocr_engine.open_image(open(path, "rb").read())))
+    _, r = reader.read(ocr_engine.open_image(open(path, "rb").read()))
     preds[os.path.basename(path)] = {**r["fields"], **r["extra"]}
 json.dump(preds, open(f"{HERE}/data/preds_local.json", "w"), indent=2, ensure_ascii=False)
 print(f"{len(preds)} photos in {time.time() - t0:.0f}s -> data/preds_local.json")

@@ -16,7 +16,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(__file__))
-import ocr_engine  # noqa: E402
+import ocr_engine
+import reader  # noqa: E402
 import pdf_reader  # noqa: E402
 import qr as qr_reader  # noqa: E402
 import quality  # noqa: E402
@@ -85,13 +86,9 @@ class Handler(BaseHTTPRequestHandler):
                                     "ms": round((time.time() - t0) * 1000)})
 
         try:
-            boxes = ocr_engine.ocr_boxes(image)
+            boxes, result = reader.read(image)
         except Exception:
             return self._send(400, {"error": "could not read the image"})
-        try:
-            result = extract(boxes)
-        except Exception as exc:  # a parser bug must not lose the OCR text
-            result = {"fields": {}, "extra": {}, "warnings": [f"reader error: {type(exc).__name__}"]}
         try:
             reconcile(result, qr_reader.decode_einvoice(image))
         except Exception:  # the QR check is a bonus; never fail the request over it

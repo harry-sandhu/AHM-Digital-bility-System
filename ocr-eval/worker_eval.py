@@ -3,7 +3,7 @@
 import json, os, sys, time, warnings
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "ocr-service"))
-import ocr_engine, qr as qr_reader, quality
+import ocr_engine, qr as qr_reader, quality, reader
 from extract import extract
 from reconcile import reconcile
 
@@ -13,8 +13,7 @@ for path in paths:
     try:
         image = ocr_engine.open_image(open(path, "rb").read())
         q = quality.assess(image)
-        boxes = ocr_engine.ocr_boxes(image)          # always run OCR here, even if the gate would say "retake"
-        result = extract(boxes)
+        boxes, result = reader.read(image)           # always run OCR here, even if the gate would say "retake"
         qr_data = None
         try:
             qr_data = qr_reader.decode_einvoice(image)
@@ -23,7 +22,7 @@ for path in paths:
         raw_fields = dict(result["fields"])
         reconcile(result, qr_data)
         out[name] = {"fields": {**result["fields"], **result["extra"]}, "ocr_only": {**raw_fields, **result["extra"]},
-                     "warnings": result["warnings"], "verified": result.get("verified", []), "qr": bool(qr_data),
+                     "warnings": result["warnings"], "anchors": result.get("anchors"), "anchor_names": result.get("anchor_names"), "tilt": result.get("tilt"), "verified": result.get("verified", []), "qr": bool(qr_data),
                      "quality": q, "ms": round((time.time() - t0) * 1000)}
     except Exception as e:
         out[name] = {"fields": {}, "ocr_only": {}, "error": f"{type(e).__name__}: {e}"}

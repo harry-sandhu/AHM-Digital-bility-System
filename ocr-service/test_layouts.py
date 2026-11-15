@@ -28,6 +28,15 @@ def bill_to_only_invoice(total_unit="KG"):
 
 
 class LayoutTests(unittest.TestCase):
+    def test_a_page_that_is_not_an_invoice_fills_nothing(self):
+        """The e-way bill page of an invoice PDF: GSTINs, an address and a vehicle number, but no invoice headings."""
+        page = [box("e-Way Bill", 500, 20, 200), box("2. Address Details", 60, 70, 300),
+                box("Consignee", 60, 110, 200), box("GARG PLYWOOD INDUSTRIES", 60, 140), box("FOCAL POINT, MANDI KALAN", 60, 170),
+                box("GSTIN : 03AAFFG5702J1ZP", 60, 200), box("Vehicle No. : HR62A2522", 60, 260, 300)]
+        r = extract(page)
+        self.assertEqual(r["fields"], {})
+        self.assertTrue(any("does not look like an invoice" in w for w in r["warnings"]))
+
     def test_bill_to_is_used_as_consignee_when_there_is_no_ship_to_block(self):
         r = extract(bill_to_only_invoice())
         f = r["fields"]

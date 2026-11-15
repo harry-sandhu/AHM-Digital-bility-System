@@ -682,6 +682,17 @@ def extract(boxes):
         # the printed Destination is only a state ("PUNJAB"): the town in the address is more useful
         fields["to"] = city_of(buyer_addr) or fields["to"]
 
+    # A page with none of the labels an invoice has ("Invoice No.", "Description of Goods", "Buyer / Bill to")
+    # is not an invoice page (the e-way bill page of a PDF, say). Reading it by position only produces made-up
+    # values (an address, a lorry number), so fill nothing and say why.
+    if not (inv_label or desc_hdr or buyer_lbl):
+        if any(fields.values()):
+            warn.append("this page does not look like an invoice (no invoice number, goods or buyer heading), so nothing was filled in")
+        fields, extra = {}, {}
+
     fields = {k: v for k, v in fields.items() if v}
     anchors = sum(1 for a in (inv_label, cons_lbl, buyer_lbl, desc_hdr, veh_lbl) if a is not None)
-    return {"fields": fields, "extra": extra, "warnings": warn, "tilt": round(page.tilt, 2), "anchors": anchors}
+    anchor_names = [n for n, a in (("invoice", inv_label), ("consignee", cons_lbl), ("buyer", buyer_lbl),
+                                   ("goods", desc_hdr), ("vehicle", veh_lbl)) if a is not None]
+    return {"fields": fields, "extra": extra, "warnings": warn, "tilt": round(page.tilt, 2), "anchors": anchors,
+            "anchor_names": anchor_names}
