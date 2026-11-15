@@ -460,6 +460,19 @@ def extract(boxes):
                 w = _gstin_warning("consigneeGstin", gst[1])
                 if w:
                     warn.append(w)
+            elif cons_lbl and buyer_lbl and name:
+                # The Ship-to block can leave the GSTIN out and print it only under Buyer (Bill to):
+                # take it from there when that is the same party.
+                bblock = page.region(x1=left_x1, y0=buyer_lbl.y1 - 1,
+                                     y1=(desc_hdr.y0 - 2) if desc_hdr else buyer_lbl.y1 + 260)
+                blines = _block_lines(bblock)
+                if blines:
+                    bname, _, _, bgst = _party(blines)
+                    if bgst[0] and bname and _letters(bname)[:10] == _letters(name)[:10]:
+                        fields["consigneeGstin"] = bgst[0]
+                        w = _gstin_warning("consigneeGstin", bgst[1])
+                        if w:
+                            warn.append(w)
 
     # ---- invoice no / date / e-way ----
     val = None
