@@ -1,5 +1,5 @@
 import unittest
-from extract import city_of
+from extract import city_of, thicknesses
 
 
 class CityOf(unittest.TestCase):
@@ -22,6 +22,16 @@ class CityOf(unittest.TestCase):
         self.assertIsNone(city_of(["Naini Plywood Pvt. Ltd"]))
         self.assertIsNone(city_of(["Rajasthan-311001"]))
         self.assertIsNone(city_of([]))
+
+
+class Thickness(unittest.TestCase):
+    def test_glued_and_separate_row_numbers(self):
+        self.assertEqual(thicknesses(["125mm Plywood 1.840x0.920", "225mm Plywood 2.140x0.710", "330mm Plywood"]), [25, 30])
+        self.assertEqual(thicknesses(["1 19mm Plywood", "212mm Plywood", "39mm Plywood", "4 6mm Plywood"]), [6, 9, 12, 19])
+        self.assertEqual(thicknesses(["6 MM Comm Plywood", "2 6 MM Comm", "418 MM Comm", "5 8 MM Comm", "6 12 MM Comm"]), [6, 8, 12, 18])
+
+    def test_none(self):
+        self.assertEqual(thicknesses(["Jai Mata Di Plywood"]), [])
 
 
 if __name__ == "__main__":

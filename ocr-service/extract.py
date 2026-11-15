@@ -374,6 +374,31 @@ def city_of(lines):
     return city.title()
 
 
+def thicknesses(item_lines):
+    """Thicknesses (mm) in item lines, smallest first: "125mm Plywood" (row 1 + 25mm) -> [25].
+
+    OCR often glues the row number onto the size ("225mm", "39mm"). When the size
+    sits at the very start of the line (no separate row number before it), a
+    leading digit equal to the row number is dropped if what is left is plausible.
+    """
+    out, row = set(), 0
+    for line in item_lines:
+        line = line.strip()
+        m = re.search(r"(\d+)\s*mm\b", line, re.I)
+        if not m:
+            continue
+        row += 1
+        d = m.group(1)
+        if m.start() == 0 and len(d) > 1:
+            if d.startswith(str(row)) and 3 <= int(d[len(str(row)):] or 0) <= 40:
+                d = d[len(str(row)):]
+            elif len(d) >= 3:
+                d = d[-2:]
+        if 3 <= int(d) <= 40:
+            out.add(int(d))
+    return sorted(out)
+
+
 def extract(boxes):
     page = Page(boxes)
     fields, extra, warn = {}, {}, []
@@ -530,7 +555,10 @@ def extract(boxes):
         for stop in page.find(r"^(OUTPUT|IGST|CGST|Total)", below=desc_hdr.y1 + 20):
             end = stop.y0
             break
-        region = page.region(x1=desc_hdr.x1 + 60,   # item names can sit well left of the header text
+        # right edge: the next column header on the same row (item names can be wider than their own
+        # header text), but never less than a little past the header
+        next_hdr = min((i.x0 for i in page.items if abs(i.cy - desc_hdr.cy) < desc_hdr.h and i.x0 > desc_hdr.x1), default=None)
+        region = page.region(x1=max(desc_hdr.x1 + 60, (next_hdr - 4) if next_hdr else 0),   # item names can sit well left of the header text
                              y0=desc_hdr.y1 + 8, y1=(end or desc_hdr.y1 + 600))
         names = [i.text for i in region
                  if re.search(r"(mm|plywood|ply|board|door|block)", i.text, re.I) and re.search(r"[A-Za-z]{3}", i.text)]
@@ -542,7 +570,8 @@ def extract(boxes):
             if kind and kind not in kinds:
                 kinds.append(kind)
         if kinds:
-            fields["description"] = " / ".join(kinds)
+            sizes = thicknesses(names)
+            fields["description"] = " / ".join(kinds) + (" " + ", ".join(f"{t}mm" for t in sizes) if sizes else "")
         else:
             # any other goods: the first item's name ("1 ADF R-105" -> "ADF R-105")
             for i in region:
