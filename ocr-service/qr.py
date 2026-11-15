@@ -29,29 +29,40 @@ def _payload(text):
 
 
 def _candidates(img):
+    """Pictures to try, cheapest and most likely first. Measured on real photos (ocr-eval): the top-right
+    corner enlarged 2x decodes most of the readable ones in a few hundredths of a second; the whole
+    picture, bigger enlargements and sharpened/thresholded versions catch the rest. Yields (picture, binarizer)."""
     W, H = img.size
-    yield img
+    GH = zxingcpp.Binarizer.GlobalHistogram
+    corner = img.crop((int(W * 0.45), 0, W, int(H * 0.45)))
+    for scale in (2.0, 3.0):
+        c = corner.resize((int(corner.width * scale), int(corner.height * scale)), Image.BICUBIC)
+        yield c, None
+        yield c, GH
+    yield img, None
     # the QR is printed in the top-right of the page: try crops, enlarged and enhanced
     for box in ((0.5, 0.0, 1.0, 0.4), (0.55, 0.02, 1.0, 0.3), (0.45, 0.0, 1.0, 0.5)):
         crop = img.crop((int(W * box[0]), int(H * box[1]), int(W * box[2]), int(H * box[3])))
-        for scale in (1.0, 2.0, 3.0):
+        for scale in (1.0, 2.0, 3.0, 4.0):
             c = crop.resize((int(crop.width * scale), int(crop.height * scale)), Image.LANCZOS) if scale != 1 else crop
-            yield c
-            yield ImageOps.autocontrast(c, cutoff=2).filter(ImageFilter.SHARPEN)
-            yield c.point(lambda v: 255 if v > 140 else 0)
+            yield c, None
+            yield ImageOps.autocontrast(c, cutoff=2).filter(ImageFilter.SHARPEN), None
+            yield c.point(lambda v: 255 if v > 140 else 0), None
 
 
 def decode_einvoice(img, budget_s=None):
     """PIL image -> dict(docNo, docDate(ISO), sellerGstin, buyerGstin, total, items) or None.
-    Gives up after `budget_s` seconds (default 0.7): most photos either decode quickly or have no readable QR."""
+    Gives up after `budget_s` seconds (default 1.5): most photos either decode quickly or have no readable QR
+    (a dense code in a small photo has under one pixel per module and cannot be read by any software)."""
     if budget_s is None:
-        budget_s = float(os.environ.get("OCR_QR_BUDGET", "0.7"))
+        budget_s = float(os.environ.get("OCR_QR_BUDGET", "1.5"))
     gray = img.convert("L")
     deadline = time.time() + budget_s
-    for cand in _candidates(gray):
+    for cand, binarizer in _candidates(gray):
         if time.time() > deadline:
             return None
-        for r in zxingcpp.read_barcodes(cand):
+        kw = {} if binarizer is None else {"binarizer": binarizer}
+        for r in zxingcpp.read_barcodes(cand, formats=zxingcpp.BarcodeFormat.QRCode, **kw):
             if r.format != zxingcpp.BarcodeFormat.QRCode:
                 continue
             p = _payload(r.text)
