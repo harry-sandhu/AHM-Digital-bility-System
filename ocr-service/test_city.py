@@ -14,6 +14,10 @@ class CityOf(unittest.TestCase):
             (["Mundka Delhi, West Delhi"], "Delhi"),
             (["BIBI TOLA, BAIRIYA, Ballia, Uttar Pradesh, 277216"], "Ballia"),
             (["Yamuna Nagar", "Hanyana"], "Yamuna Nagar"),   # misread state is still skipped
+            (["VPO.HAMBRAN, DISTT:LUDHIANA, PUNJAB", "Punjab - 141110, India"], "Hambran"),
+            (["VILL:NOORPURA TEH:BHAWANIGARH,", "DISTT:SANGRUR, PUNJAB, PUNJAB"], "Bhawanigarh"),
+            (["TEH. BAHADURGARH,", "JHAJJAR HARYANA, HARYANA", "Haryana - 124501, India"], "Jhajjar"),
+            (["VILL:BHISHARAT NAGAR, TEH:BILASPUR,", "RAMPUR, UP, UP", "Uttar Pradesh - 244921, India"], "Rampur"),
         ]
         for lines, want in cases:
             self.assertEqual(city_of(lines), want, lines)

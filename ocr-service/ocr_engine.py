@@ -97,6 +97,9 @@ def _get_engine():
             rec_batch_num=int(os.environ.get("OCR_REC_BATCH", "6")),
             # Height the recognition model is fed (48 for the PP-OCRv3 model; the light v2 model wants 32).
             rec_img_shape=[3, int(os.environ.get("OCR_REC_HEIGHT", "48")), 320],
+            # Lines whose recognition confidence is under this are dropped. A lone digit (an invoice
+            # number "5") scores low, so the library default of 0.5 loses it (0.3 found them without adding junk on the test sets).
+            text_score=float(os.environ.get("OCR_TEXT_SCORE", "0.3")),
         )
         if os.path.exists(rec) and os.path.exists(keys):
             kwargs.update(rec_model_path=rec, rec_keys_path=keys)

@@ -43,7 +43,7 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(f["declaredValue"], "124950")     # never the 7,000 kg quantity or the tax-summary row
         self.assertEqual((f["packages"], f["methodOfPacking"]), ("280", "Bags"))
         self.assertEqual(f["description"], "ADF R-105")
-        self.assertEqual((f["invoiceNoDate"], f["invoiceDate"], f["lorryNo"], f["to"]), ("214", "2026-09-08", "UK18CA7485", "Punjab"))
+        self.assertEqual((f["invoiceNoDate"], f["invoiceDate"], f["lorryNo"], f["to"]), ("214", "2026-09-08", "UK18CA7485", "Abc"))   # printed Destination is only a state: the town from the address wins
 
     def test_pieces_total_next_to_an_area_quantity(self):
         f = extract(bill_to_only_invoice("PCS"))["fields"]

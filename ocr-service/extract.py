@@ -44,7 +44,7 @@ _PIECE_UNITS = {"PCS", "PGS", "PCO", "NOS", "NO", "BAG", "BAGS", "BOX", "BOXES",
 _WEIGHT_UNITS = {"KG": "KG", "KGS": "KG", "MT": "MT", "MTS": "MT", "QTL": "QTL"}
 QTY_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(P[CGO]S|NOS?|KGS?|MTS?|QTL|BAGS?|BOXES|BOX|SQMT|SQM|LTRS?|CTN|BDL|ROLLS?)(?![A-Za-z])", re.I)
 UNIT_WORD = re.compile(r"\b(?:P[CGO]S|NOS?|KGS?|MTS?|QTL|BAGS?|BOXES|BOX|SQ?MT|SQM|LTRS?|CTN|BDL|ROLLS?)\b", re.I)
-PACKS_RE = re.compile(r"(\d+)\s*(BAGS?|BOXES|BOX|CARTONS?|DRUMS?|ROLLS?|BUNDLES?|PKTS?)\s*[X\u00d7]\s*\d", re.I)
+PACKS_RE = re.compile(r"(\d+)\s*(BAGS?|BOXES|BOX|CARTONS?|DRUMS?|ROLLS?|BUNDLES?|PKTS?)\s*[X\u00d7]\s*(\d+(?:\.\d+)?)\s*(KGS?)?", re.I)
 
 
 def _num(text):
@@ -337,7 +337,9 @@ _STATES = {
     "meghalaya", "mizoram", "nagaland", "odisha", "orissa", "punjab", "rajasthan", "rajathan", "sikkim",
     "tamil nadu", "telangana", "tripura", "uttar pradesh", "uttarakhand", "uttaranchal", "west bengal",
     "jammu and kashmir", "jammu & kashmir", "ladakh", "chandigarh", "puducherry", "india",
+    "uttarpradesh", "uttrakhand", "up", "uk", "mp", "hp", "hr", "pb", "rj", "gj", "mh", "dl", "j&k",
 }
+_STATE_TAIL = re.compile(r"(?i)\s+(?:" + "|".join(sorted((re.escape(x) for x in _STATES if len(x) > 3), key=len, reverse=True)) + r")$")
 
 
 def _is_state(p):
@@ -361,6 +363,11 @@ def city_of(lines):
         p = re.sub(r"\b\d{6}\b", " ", p)                  # pin code
         p = re.sub(r"(?i)\bcode\s*:?\s*\d+", " ", p)
         p = re.sub(r"\s*[-:.]+\s*$", "", tidy(p)).strip(" -.:")
+        t = re.search(r"(?i)\bteh(?:sil)?\b[.:\s]*(.+)$", p)          # "VILL:NOORPURA TEH:BHAWANIGARH"
+        if t:
+            p = t.group(1)
+        p = re.sub(r"(?i)^(?:vpo|vill?(?:age)?|po)\b[.:\s]*", "", p)  # "VPO.HAMBRAN", "Vill: X"
+        p = _STATE_TAIL.sub("", p).strip(" -.:")                       # "JHAJJAR HARYANA"
         if not p or _is_state(p) or not re.search(r"[A-Za-z]{3}", p):
             continue
         m = re.match(r"(?i)dist(?:t|rict)?\.?\s*[:.]?\s*(.+)", p)
@@ -565,6 +572,19 @@ def extract(boxes):
                 if not well_formed:
                     warn.append("declaredValue: the total looked garbled in the photo, please verify")
             break
+        if "declaredValue" not in fields:
+            # No "Total" row carries a quantity (it only shows the amount): take the first
+            # "Total" row below the items - that is the invoice total.
+            for t in page.find(r"^Total", below=desc_hdr.y1 + 20):
+                window = [i for i in page.items if t.cy - 26 <= i.cy <= t.cy + 30 and i.x0 > t.x1
+                          and not UNIT_WORD.search(i.text)]
+                cands = [c for i in window for c in parse_amounts(i.text)]
+                if cands:
+                    v, well_formed = max(cands, key=lambda c: c[0])
+                    fields["declaredValue"] = str(int(v)) if v == int(v) else f"{v:.2f}"
+                    if not well_formed:
+                        warn.append("declaredValue: the total looked garbled in the photo, please verify")
+                    break
 
         # ---- goods description: a short summary of the item lines ----
         end = None
@@ -617,6 +637,17 @@ def extract(boxes):
                 fields.setdefault("packages", packs[0].group(1))
             fields["methodOfPacking"] = unit if unit.endswith("s") else unit + "s"
 
+        # "(80 BAGS X 25 KGS)": packs x kg each is the weight. The printed weight ("2,000.000 KG") often
+        # loses its decimal point in a photo and comes out 10x, 100x or 0 off: when it is off by a power
+        # of ten from what the packs add up to, trust the packs.
+        if packs and all(m.group(4) for m in packs):
+            pack_kg = sum(int(m.group(1)) * float(m.group(3)) for m in packs)
+            cur = re.match(r"([\d.]+)\s*KG$", fields.get("actualWt", ""))
+            cur_kg = float(cur.group(1)) if cur else 0.0
+            ratio = cur_kg / pack_kg if pack_kg else 0
+            if pack_kg and "actualWt" in fields and (not cur_kg or any(abs(ratio / p - 1) < 0.02 for p in (10, 100, 1000, 0.1, 0.01, 0.001))):
+                fields["actualWt"] = f"{_num(str(pack_kg))} KG"
+
         # No quantity on the "Total" row (it only shows the amount): add up the item lines instead,
         # when they are all in the same unit.
         if "actualWt" not in fields:
@@ -632,6 +663,9 @@ def extract(boxes):
         fields["from"] = city_of(seller_addr)
     if buyer_addr and not fields.get("to"):
         fields["to"] = city_of(buyer_addr)
+    elif buyer_addr and _is_state(fields.get("to") or ""):
+        # the printed Destination is only a state ("PUNJAB"): the town in the address is more useful
+        fields["to"] = city_of(buyer_addr) or fields["to"]
 
     fields = {k: v for k, v in fields.items() if v}
     anchors = sum(1 for a in (inv_label, cons_lbl, buyer_lbl, desc_hdr, veh_lbl) if a is not None)
