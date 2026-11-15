@@ -9,6 +9,7 @@ below each one. GSTINs are repaired by position and checked with their
 built-in check character.
 """
 import math
+import difflib
 import re
 import statistics
 from datetime import datetime
@@ -327,9 +328,56 @@ def _party(lines):
     return name, addr, mobile, gstin
 
 
+_STATES = {
+    "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh", "goa", "gujarat", "haryana",
+    "himachal pradesh", "jharkhand", "karnataka", "kerala", "madhya pradesh", "maharashtra", "manipur",
+    "meghalaya", "mizoram", "nagaland", "odisha", "orissa", "punjab", "rajasthan", "rajathan", "sikkim",
+    "tamil nadu", "telangana", "tripura", "uttar pradesh", "uttarakhand", "uttaranchal", "west bengal",
+    "jammu and kashmir", "jammu & kashmir", "ladakh", "chandigarh", "puducherry", "india",
+}
+
+
+def _is_state(p):
+    p = p.lower().strip(" .")
+    return p in _STATES or bool(difflib.get_close_matches(p, _STATES, n=1, cutoff=0.82))
+
+
+def city_of(lines):
+    """The town an address ends in ("..., Bhiwadi, Distt. Alwar, Rajasthan-301707" -> "Bhiwadi").
+
+    Takes the last comma-separated part that is not a state, pin code, district
+    or country; falls back to the district. None when nothing sensible is left.
+    """
+    parts = []
+    for ln in lines or []:
+        ln = re.sub(r"\([^)]*(\)|$)", " ", ln)           # "(U.S. Nagar)", also when the ")" was not read
+        parts += re.split(r"[,\n]|(?<![Dd]istt)(?<![Dd]ist)(?<![Vv]ill)(?<=[a-z]{3})\.\s+(?=[A-Z])", ln)   # "Po Danpur. Rudrapur"
+    towns, district = [], None
+    for p in parts:
+        p = re.sub(r"(?i)\bu\.?\s*s\.?\s*nagar\b", " ", p)   # "(U.S. Nagar)" whose brackets were not read
+        p = re.sub(r"\b\d{6}\b", " ", p)                  # pin code
+        p = re.sub(r"(?i)\bcode\s*:?\s*\d+", " ", p)
+        p = re.sub(r"\s*[-:.]+\s*$", "", tidy(p)).strip(" -.:")
+        if not p or _is_state(p) or not re.search(r"[A-Za-z]{3}", p):
+            continue
+        m = re.match(r"(?i)dist(?:t|rict)?\.?\s*[:.]?\s*(.+)", p)
+        if m:
+            district = m.group(1).strip()
+            continue
+        towns.append(p)
+    city = towns[-1] if towns else district
+    if (not city or len(city) > 30 or re.search(r"\d", city)
+            or re.search(r"(?i)\b(ltd|pvt|private|limited|industries|traders|enterprises|corporation|company|co\.?)\b", city)):
+        return None
+    city = re.sub(r"(?i)^p\.?o\.?\s+\w+\s+", "", city)      # "Po Danpur Rudrapur" -> "Rudrapur"
+    city = re.sub(r"(?i)^(east|west|north|south|central)\s+(delhi)$", r"\2", city)
+    return city.title()
+
+
 def extract(boxes):
     page = Page(boxes)
     fields, extra, warn = {}, {}, []
+    seller_addr = buyer_addr = None
     if not page.items:
         return {"fields": {}, "extra": {}, "warnings": ["no text found"]}
 
@@ -356,6 +404,7 @@ def extract(boxes):
         if lines:
             name, addr, _, gst = _party(lines)
             addr = addr[:4]
+            seller_addr = addr
             fields["consignorAddress"] = "\n".join([clean_company(name)] + addr) if name else None
             if gst[0]:
                 fields["consignorGstin"] = gst[0]
@@ -377,6 +426,7 @@ def extract(boxes):
         lines = _block_lines(block)
         if lines:
             name, addr, mobile, gst = _party(lines)
+            buyer_addr = addr
             fields["consigneeAddress"] = "\n".join([name] + addr) if name else None
             if mobile:
                 fields["phoneNo"] = mobile
@@ -511,6 +561,12 @@ def extract(boxes):
                 unit = m.group(2).title()
                 fields["methodOfPacking"] = unit if unit.endswith("s") else unit + "s"
                 break
+
+    # from / to: the towns the two addresses end in (a printed Destination wins)
+    if seller_addr and not fields.get("from"):
+        fields["from"] = city_of(seller_addr)
+    if buyer_addr and not fields.get("to"):
+        fields["to"] = city_of(buyer_addr)
 
     fields = {k: v for k, v in fields.items() if v}
     anchors = sum(1 for a in (inv_label, cons_lbl, buyer_lbl, desc_hdr, veh_lbl) if a is not None)
