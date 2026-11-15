@@ -16,6 +16,7 @@ from datetime import datetime
 from difflib import SequenceMatcher
 
 from gstin import check_char, is_valid
+from words_amount import total_from_items
 
 GSTIN_RE = re.compile(r"[0-9A-Z]{15}")
 VEHICLE_RE = re.compile(r"\b([A-Z]{2})\s?(\d{1,2})\s?([A-Z]{1,3})\s?(\d{4})\b")
@@ -600,6 +601,21 @@ def extract(boxes):
                     if not well_formed:
                         warn.append("declaredValue: the total looked garbled in the photo, please verify")
                     break
+
+        # ---- cross-check the total against "Amount Chargeable (in words)" ----
+        words_total = total_from_items(page.items)
+        if words_total:
+            fmt = lambda v: str(int(v)) if v == int(v) else f"{v:.2f}"
+            have = float(fields["declaredValue"]) if fields.get("declaredValue") else None
+            if have is None:
+                fields["declaredValue"] = fmt(words_total)          # digits unreadable: the words are ordinary English
+            elif abs(have - words_total) > 0.5:
+                printed = {round(v) for i in page.items for v, _ in parse_amounts(i.text)}
+                if round(words_total) in printed:                   # two independent reads agree
+                    fields["declaredValue"] = fmt(words_total)
+                else:
+                    warn.append(f"declaredValue: the amount in words says {fmt(words_total)} but the digits read "
+                                f"{fields['declaredValue']} - please check")
 
         # ---- goods description: a short summary of the item lines ----
         end = None
