@@ -901,6 +901,8 @@ pub async fn extract_bill_data(
                         "warnings": result.warnings,
                         "verified": result.verified,
                         "rawText": result.raw_text,
+                        "engine": result.engine,
+                        "ocrMs": result.ms,
                     })));
                 }
                 Err(err) => {

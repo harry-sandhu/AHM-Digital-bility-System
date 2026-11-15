@@ -28,6 +28,7 @@ HOST = os.environ.get("OCR_HOST", "127.0.0.1")
 PORT = int(os.environ.get("OCR_PORT", "8787"))
 KEY = os.environ.get("OCR_KEY", "")
 MAX_BYTES = 15 * 1024 * 1024
+STARTUP = {}   # what start-up learned about the engine (self-test time, fallback note), shown by /health
 
 
 def raw_text(boxes):
@@ -48,7 +49,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            return self._send(200, {"ok": True})
+            return self._send(200, {"ok": True, "engine": ocr_engine.engine_name(), **STARTUP})
         self._send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -71,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
                 result = pdf_reader.read_pdf(data)
             except Exception as exc:
                 return self._send(400, {"error": f"could not read the PDF ({type(exc).__name__})"})
-            result.update(rawText="", ms=round((time.time() - t0) * 1000))
+            result.update(rawText="", ms=round((time.time() - t0) * 1000), engine=ocr_engine.engine_name())
             return self._send(200, result)
         try:
             image = ocr_engine.open_image(data)
@@ -96,6 +97,7 @@ class Handler(BaseHTTPRequestHandler):
         result["quality"] = q
         result["rawText"] = raw_text(boxes)
         result["ms"] = round((time.time() - t0) * 1000)
+        result["engine"] = ocr_engine.engine_name()
         self._send(200, result)
 
     def log_message(self, fmt, *args):  # no request logging: payloads are customer documents
@@ -103,6 +105,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    backend, took, note = ocr_engine.check_backend()
+    STARTUP.update(selfTestSeconds=None if took is None else round(took, 1), note=note)
+    if note:
+        print(note, flush=True)
     ocr_engine._get_engine()  # load models once, up front
-    print(f"bilty-ocr listening on {HOST}:{PORT}", flush=True)
+    print(f"bilty-ocr ({ocr_engine.engine_name()}) listening on {HOST}:{PORT}", flush=True)
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()

@@ -46,6 +46,15 @@ def cpu_quota():
     return best
 
 
+def _thread_count() -> int:
+    """ONNX Runtime threads to use: OCR_THREADS, else ceil(CPU quota), else 0 (library default)."""
+    env = os.environ.get("OCR_THREADS")
+    if env is not None:
+        return int(env)
+    q = cpu_quota()
+    return 0 if q is None else max(1, -(-int(q * 100) // 100))
+
+
 def _limit_ort_threads():
     """ONNX Runtime's default is fastest on a plain server (measured on one core: default 1.9 s,
     forced 1 thread 2.4 s, 2 threads 4.2 s). But under a hard CPU quota (e.g. Docker `cpus: 0.75`)
@@ -54,12 +63,7 @@ def _limit_ort_threads():
     Override with OCR_THREADS (0 = leave ONNX Runtime's default)."""
     import onnxruntime as ort
 
-    env = os.environ.get("OCR_THREADS")
-    if env is not None:
-        threads = int(env)
-    else:
-        q = cpu_quota()
-        threads = 0 if q is None else max(1, -(-int(q * 100) // 100))
+    threads = _thread_count()
     if threads <= 0:
         return
     original = ort.SessionOptions
@@ -73,11 +77,59 @@ def _limit_ort_threads():
     ort.SessionOptions = CappedSessionOptions
 
 
+# "v1" (default): rapidocr-onnxruntime 1.x with the PP-OCRv3 detector + an English recognition model.
+# "v6": rapidocr 3.x with the PP-OCRv6 detection + recognition models (OCR_V6_SIZE: tiny | small | medium).
+BACKEND = os.environ.get("OCR_BACKEND", "v1")
+
+
+class _V6Engine:
+    """PP-OCRv6 through rapidocr 3.x, wrapped to look like the 1.x engine to the code below."""
+
+    def __init__(self):
+        from rapidocr import ModelType, RapidOCR
+
+        self.det_limit = int(float(os.environ.get("OCR_DET_LIMIT", "1100")))
+        size = os.environ.get("OCR_V6_SIZE", "small")
+        det_size = os.environ.get("OCR_V6_DET_SIZE", size)   # detection and recognition sizes can differ
+        rec_size = os.environ.get("OCR_V6_REC_SIZE", size)
+        params = {
+            "Global.text_score": float(os.environ.get("OCR_TEXT_SCORE", "0.3")),
+            "Global.use_cls": os.environ.get("OCR_ANGLE_CLS", "0") == "1",
+            "Det.model_type": ModelType(det_size),
+            "Rec.model_type": ModelType(rec_size),
+            "Det.limit_side_len": self.det_limit,
+            "Det.limit_type": os.environ.get("OCR_DET_TYPE", "max"),
+            "Rec.rec_batch_num": int(os.environ.get("OCR_REC_BATCH", "6")),
+        }
+        # Models fetched by download_models.sh (tiny); the small ones are found inside the rapidocr package.
+        mdir = os.environ.get("OCR_V6_MODEL_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "models-v6"))
+        for key, part, sz in (("Det.model_path", "det", det_size), ("Rec.model_path", "rec", rec_size)):
+            path = os.path.join(mdir, f"PP-OCRv6_{part}_{sz}.onnx")
+            if os.path.exists(path):
+                params[key] = path
+        threads = _thread_count()
+        if threads > 0:
+            params["EngineConfig.onnxruntime.intra_op_num_threads"] = threads
+            params["EngineConfig.onnxruntime.inter_op_num_threads"] = 1
+        self.engine = RapidOCR(params=params)
+
+    def run(self, arr, detail=None):
+        """-> [(box, text, score)] like the 1.x engine; `detail` is this call's detection size."""
+        self.engine._load_det_model()
+        self.engine.text_det.limit_side_len = detail or self.det_limit
+        out = self.engine(arr)
+        if out is None or out.boxes is None or out.txts is None:
+            return []
+        return list(zip(out.boxes, out.txts, out.scores))
+
+
 def _get_engine():
     """English recognition model when present (keeps word spaces, which the
     default Chinese+English model drops: "O,NearKanchGodam"); otherwise the
     package default. Run ./download_models.sh to fetch it."""
     global _engine
+    if _engine is None and BACKEND == "v6":
+        _engine = _V6Engine()
     if _engine is None:
         _limit_ort_threads()
         from rapidocr_onnxruntime import RapidOCR
@@ -185,18 +237,78 @@ def ocr_boxes(data, detail: int | None = None) -> list[dict]:
     arr = _to_array(straighten(img))
     with _lock:  # one OCR at a time: bounds memory on a small VPS
         eng = _get_engine()
-        op = eng.text_detector.preprocess_op[0]
-        saved = getattr(op, "limit_side_len", None)
-        if detail:
-            op.limit_side_len = detail
-        try:
-            result, _ = eng(arr)
-        finally:
-            if detail and saved is not None:
-                op.limit_side_len = saved
-            del arr
-            _release_memory()
+        if BACKEND == "v6":
+            try:
+                result = eng.run(arr, detail)
+            finally:
+                del arr
+                _release_memory()
+        else:
+            op = eng.text_detector.preprocess_op[0]
+            saved = getattr(op, "limit_side_len", None)
+            if detail:
+                op.limit_side_len = detail
+            try:
+                result, _ = eng(arr)
+            finally:
+                if detail and saved is not None:
+                    op.limit_side_len = saved
+                del arr
+                _release_memory()
     return [
         {"text": text, "conf": float(conf), "pts": [[float(x), float(y)] for x, y in box]}
         for box, text, conf in (result or [])
     ]
+
+
+def engine_name() -> str:
+    """Which engine reads pictures right now, e.g. "v1" or "v6-small" (shown in scan results)."""
+    if BACKEND == "v6":
+        return "v6-" + os.environ.get("OCR_V6_SIZE", "small")
+    return "v1"
+
+
+def _selftest_image() -> Image.Image:
+    from PIL import ImageDraw, ImageFont
+
+    img = Image.new("RGB", (900, 260), "white")
+    d = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.load_default(size=44)
+    except TypeError:                                  # very old Pillow
+        font = ImageFont.load_default()
+    d.text((30, 30), "Tax Invoice No. 4172", fill="black", font=font)
+    d.text((30, 130), "GSTIN 05AABCM9381J1Z6", fill="black", font=font)
+    return img
+
+
+def selftest() -> None:
+    """Load the engine and read a small picture; raises if nothing is read. Run in a child process."""
+    boxes = ocr_boxes(_selftest_image())
+    if not boxes:
+        raise RuntimeError("self-test read nothing")
+
+
+def check_backend(timeout: float = 180.0) -> tuple[str, float | None, str]:
+    """Start-up safety net for the new engine. Tries it in a CHILD process first, because a server CPU
+    that lacks an instruction the library needs kills the process outright (no Python exception to catch).
+    -> (backend to use, seconds the self-test took, note). Falls back to "v1" when the child fails."""
+    global BACKEND
+    if BACKEND == "v1":
+        return "v1", None, ""
+    import subprocess
+    import sys
+    import time
+
+    t0 = time.time()
+    try:
+        proc = subprocess.run([sys.executable, "-c", "import ocr_engine; ocr_engine.selftest()"],
+                              cwd=os.path.dirname(os.path.abspath(__file__)), capture_output=True, timeout=timeout)
+        ok, note = proc.returncode == 0, ("" if proc.returncode == 0 else f"exit code {proc.returncode}")
+    except subprocess.TimeoutExpired:
+        ok, note = False, f"no answer in {timeout:.0f} s"
+    took = time.time() - t0
+    if not ok:
+        BACKEND = "v1"
+        return "v1", took, f"engine {os.environ.get('OCR_BACKEND')} failed its self-test ({note}); using v1"
+    return BACKEND, took, ""

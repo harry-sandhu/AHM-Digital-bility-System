@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && pip install --no-deps rapidocr-onnxruntime==1.2.3
 
 COPY download_models.sh .
 RUN sh download_models.sh

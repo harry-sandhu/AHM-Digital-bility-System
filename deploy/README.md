@@ -74,6 +74,22 @@ build images. GitHub secrets needed (Settings -> Secrets and variables -> Action
 `VPS_SSH_KEY` (a dedicated key, locked on the server to run only `deploy.sh`), `VPS_KNOWN_HOSTS`.
 No process manager such as pm2 is needed: every service has `restart: unless-stopped`.
 
+## Rolling back
+Every build is tagged with its commit, and the last known-good production is marked with the git tag
+`production-stable-2026-11-15` (the commit that ran when the scan checks last passed). To put the server back on it
+(the GitHub deploy job then rebuilds and redeploys it, a few minutes):
+
+    git push --force origin production-stable-2026-11-15^{commit}:production
+
+To only switch the OCR engine back without touching anything else, set `OCR_BACKEND: v1` in
+`deploy/docker-compose.yml` and push to `production`.
+
+## OCR engine (v1 / v6)
+`OCR_BACKEND` in `docker-compose.yml`: `v1` = the original engine, `v6` = PP-OCRv6 (`OCR_V6_SIZE` tiny or small).
+At start-up the service tries v6 in a child process and falls back to v1 on its own if that fails (for example a
+CPU without a needed instruction). Every scan answer carries `engine` and `ocrMs`, so what actually ran and how long it took
+can be checked from outside.
+
 ## Day to day
 - **Update:** after pushing code and seeing the green GitHub run: `cd /opt/bilty/deploy && docker compose pull && docker compose up -d`
 - **Look at memory:** `docker stats --no-stream` and `free -h`

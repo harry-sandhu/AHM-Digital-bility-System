@@ -15,4 +15,13 @@ mkdir -p models-light
 curl -fsSL -o models-light/en_PP-OCRv3_rec_infer.onnx \
   https://huggingface.co/SWHL/RapidOCR/resolve/main/PP-OCRv1/en_number_mobile_v2.0_rec_infer.onnx
 cp models/en_dict.txt models-light/en_dict.txt
-echo "models downloaded:"; ls -l models models-light
+
+# PP-OCRv6 "tiny" detection + recognition for OCR_BACKEND=v6 OCR_V6_SIZE=tiny (6 MB). The "small" ones ship
+# inside the rapidocr wheel. Optional: if the download fails the service just runs the small models or v1.
+mkdir -p models-v6
+for part in det rec; do
+  curl -fsSL --retry 3 -o "models-v6/PP-OCRv6_${part}_tiny.onnx" \
+    "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.10.0/onnx/PP-OCRv6/${part}/PP-OCRv6_${part}_tiny.onnx" \
+    || { echo "warning: could not fetch the PP-OCRv6 tiny $part model"; rm -f "models-v6/PP-OCRv6_${part}_tiny.onnx"; }
+done
+echo "models downloaded:"; ls -l models models-light models-v6

@@ -22,6 +22,9 @@ pub struct ServiceExtraction {
     /// non-empty, no fields were read.
     pub retake: Vec<String>,
     pub raw_text: String,
+    /// Which OCR engine read it ("v1", "v6-tiny", ...) and how long the service took, in ms.
+    pub engine: String,
+    pub ms: u64,
 }
 
 impl OcrServiceClient {
@@ -70,6 +73,12 @@ impl OcrServiceClient {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string(),
+            engine: value
+                .get("engine")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            ms: value.get("ms").and_then(Value::as_u64).unwrap_or(0),
         })
     }
 }

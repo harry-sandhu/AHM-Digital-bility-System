@@ -1,10 +1,20 @@
 # Pinned to the versions the accuracy numbers in ocr-eval/ were measured with.
-# rapidocr bundles the PaddleOCR detection/angle models in the wheel; the English
-# recognition model is fetched by download_models.sh.
-rapidocr-onnxruntime==1.2.3
+#
+# Two OCR engines live in the image; OCR_BACKEND picks one (see ocr_engine.py):
+#   v1  rapidocr-onnxruntime 1.2.3  - PP-OCRv3 detector + the English recognition model from download_models.sh
+#   v6  rapidocr 3.x                - PP-OCRv6 detection + recognition (small ships inside the wheel, tiny is
+#                                     fetched by download_models.sh)
+# rapidocr-onnxruntime is installed with --no-deps in the Dockerfile (it asks for opencv-python, rapidocr for
+# opencv-python-headless; two OpenCVs in one image fight), so its dependencies are listed here instead.
+rapidocr==3.10.0
+onnxruntime
+pyclipper
+Shapely
+six
+PyYAML
 zxing-cpp
 # The VPS exposes a basic virtual CPU ("Common KVM processor": SSE3 only, no SSE4/AVX). NumPy 2.x and
 # OpenCV 5 need newer instructions and crash at import there, so stay on the 1.x / 4.x lines.
 numpy==1.26.4
-opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 pillow
