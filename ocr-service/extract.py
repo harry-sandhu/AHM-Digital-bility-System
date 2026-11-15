@@ -359,7 +359,7 @@ def city_of(lines):
         parts += re.split(r"[,\n]|(?<![Dd]istt)(?<![Dd]ist)(?<![Vv]ill)(?<=[a-z]{3})\.\s+(?=[A-Z])", ln)   # "Po Danpur. Rudrapur"
     towns, district = [], None
     for p in parts:
-        p = re.sub(r"(?i)\bu\.?\s*s\.?\s*nagar\b", " ", p)   # "(U.S. Nagar)" whose brackets were not read
+        p = re.sub(r"(?i)\bu\.?\s*s\.?\s*nag[a-z]{1,2}\b", " ", p)   # "(U.S. Nagar)" whose brackets were not read
         p = re.sub(r"\b\d{6}\b", " ", p)                  # pin code
         p = re.sub(r"(?i)\bcode\s*:?\s*\d+", " ", p)
         p = re.sub(r"\s*[-:.]+\s*$", "", tidy(p)).strip(" -.:")

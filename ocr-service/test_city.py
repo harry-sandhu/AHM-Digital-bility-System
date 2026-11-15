@@ -7,6 +7,7 @@ class CityOf(unittest.TestCase):
         cases = [
             (["PO Danpur, Rudrapur (U.S. Nagar)"], "Rudrapur"),
             (["Po Danpur. Rudrapur U.S. Nagar"], "Rudrapur"),
+            (["Po Danpur, Rudrapur U.S. Nagan"], "Rudrapur"),      # light OCR model reads the last "r" as "n"
             (["Lalpur, Kichha Road, Rudrapur"], "Rudrapur"),
             (["Industrial Area, Bhiwadi", "Distt. Alwar, Rajasthan-301707"], "Bhiwadi"),
             (["Mohan Nagar", "Ghaziabad-201007"], "Ghaziabad"),
