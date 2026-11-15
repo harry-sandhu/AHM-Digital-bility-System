@@ -54,8 +54,8 @@ services:
       # With v6 the service tests it in a child process at start-up and falls back to v1 by itself if it
       # cannot run on this CPU. Switching back = set this to v1 (or roll back to the git tag
       # production-stable-2026-11-15, see deploy/README.md).
-      OCR_BACKEND: v1
-      OCR_V6_SIZE: tiny
+      OCR_BACKEND: v6
+      OCR_V6_SIZE: small
     expose:
       - "8787"
     mem_limit: 900m          # peaks ~550 MB while reading a photo
