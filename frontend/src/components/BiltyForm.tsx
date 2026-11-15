@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   createBilty,
   extractBillData,
+  sendScanFeedback,
+  type ScanOutcome,
   getBilty,
   markBiltyPrinted,
   requestBiltyNumber,
@@ -110,6 +112,9 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
   const [gstAck, setGstAck] = useState(0);
   // Popups the user has accepted for the current edit; cleared whenever the form changes.
   const confirms = useRef({ extra: false, gst: false });
+  // What the last bill scan filled in (field -> value). Compared with the saved
+  // form to learn which fields the scan got wrong; values are never sent.
+  const lastScan = useRef<{ filled: Record<string, string>; empty: string[]; source: "image" | "pdf" } | null>(null);
   const [consignors, setConsignors] = useState<SavedContact[]>([]);
   const [consignees, setConsignees] = useState<SavedContact[]>([]);
   const [packingOptions, setPackingOptions] = useState<SavedContact[]>([]);
@@ -515,6 +520,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
       const filledFieldCount = Object.values(extractedFields).filter(Boolean).length;
       const warnings = response.data.warnings || [];
 
+      // Which fields this scan fills (only empty ones), worked out from the
+      // current form: a state updater runs later, so it can't report back here.
+      const scanFilled: Record<string, string> = {};
+      for (const [field, value] of Object.entries(extractedFields)) {
+        if (value && !(formData as any)[field]) scanFilled[field] = applyFieldCase(field, value);
+      }
       setFormData((prev) => {
         const next = { ...prev };
 
@@ -527,6 +538,11 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
         return calculateBiltyTotals(next);
       });
 
+      lastScan.current = {
+        filled: scanFilled,
+        empty: SCANNED_FIELDS.filter((f) => !scanFilled[f] && !(formData as any)[f]),
+        source: file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? "pdf" : "image",
+      };
       setStatusMessage("");
       showSuccess(
         filledFieldCount
@@ -543,6 +559,23 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     } finally {
       setIsScanningBill(false);
     }
+  };
+
+  // After a successful save: tell the server which scanned fields were kept,
+  // changed or cleared, and which the scan missed. Once per scan; best effort.
+  const reportScanFeedback = (saved: Record<string, any>) => {
+    const scan = lastScan.current;
+    if (!scan) return;
+    lastScan.current = null;
+    const outcomes: Record<string, ScanOutcome> = {};
+    for (const [field, scanned] of Object.entries(scan.filled)) {
+      const now = String(saved[field] ?? "").trim();
+      outcomes[field] = !now ? "cleared" : now === scanned.trim() ? "kept" : "changed";
+    }
+    for (const field of scan.empty) {
+      if (String(saved[field] ?? "").trim()) outcomes[field] = "missed";
+    }
+    if (Object.keys(outcomes).length) sendScanFeedback(outcomes, scan.source).catch(() => {});
   };
 
   const submitBilty = async (confirmExtraPayment = false, confirmGst = false) => {
@@ -608,6 +641,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
       if (typeof response.data.creditBalance === "number" && user) {
         updateUser({ ...user, creditBalance: response.data.creditBalance });
       }
+      reportScanFeedback(calculateBiltyTotals({ ...sentFormData, ...(savedFormData || {}) }));
       setHasSavedBilty(true);
       setStatusMessage("");
       showSuccess(
@@ -961,5 +995,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     </form>
   );
 };
+
+// Fields the bill scanner can fill (the ones worth tracking).
+const SCANNED_FIELDS = [
+  "invoiceNoDate", "invoiceDate", "declaredValue", "consignorAddress", "consigneeAddress",
+  "consignorGstin", "consigneeGstin", "lorryNo", "phoneNo", "packages", "description",
+  "methodOfPacking", "actualWt", "biltyDate",
+];
 
 export default BiltyForm;

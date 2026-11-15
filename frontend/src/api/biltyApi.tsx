@@ -69,6 +69,12 @@ export const extractBillData = (file: File) => {
   });
 };
 
+export type ScanOutcome = "kept" | "changed" | "cleared" | "missed";
+
+/** Field names + what happened to them after a scan (never the values). */
+export const sendScanFeedback = (fields: Record<string, ScanOutcome>, source: "image" | "pdf") =>
+  axiosInstance.post<{ ok: boolean }>("/bilty/scan-feedback", { fields, source });
+
 export const markBiltyPrinted = (id: string) =>
   axiosInstance.post<{ printedAt: string }>(`/bilty/${id}/print`);
 

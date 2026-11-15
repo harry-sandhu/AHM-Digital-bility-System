@@ -1,4 +1,4 @@
-use crate::{handlers::bilty as handlers, middleware::rate_limit, state::AppState};
+use crate::{handlers::{bilty as handlers, scan_feedback}, middleware::rate_limit, state::AppState};
 use axum::{
     extract::DefaultBodyLimit,
     routing::{get, post},
@@ -40,6 +40,8 @@ pub fn router() -> Router<Arc<AppState>> {
                     )),
             ),
         )
+        .route("/scan-feedback", post(scan_feedback::record_scan_feedback))
+        .route("/scan-feedback/summary", get(scan_feedback::scan_feedback_summary))
         .route("/{id}/print", post(handlers::mark_printed))
         .route("/{id}/revisions", get(handlers::get_revisions))
         .route(
