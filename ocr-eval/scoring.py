@@ -63,6 +63,8 @@ FIELDS = {
     "vehicle (lorry) no": ("vehicleNo",    f_eq_alnum(["lorryNo"])),
     "to (destination)":  ("destination",   lambda p, t: contains_fuzzy(p.get("to"), t)),
     "lr no":             ("lrNo",          f_eq_alnum(["lrNo"])),
+    "weight (kg)":       ("weightKg",      lambda p, t: abs((to_number(p.get("actualWt")) or -1) - float(t)) < 0.5 and "KG" in str(p.get("actualWt")).upper()),
+    "from (origin)":     ("fromPlace",     lambda p, t: contains_fuzzy(p.get("from"), t)),
     "total pieces":      ("totalPcs",      lambda p, t: to_number(p.get("packages")) == float(t)),
     "total amount":      ("totalAmount",   lambda p, t: to_number(p.get("declaredValue")) == float(t)),
 }
@@ -71,6 +73,7 @@ PRED_KEYS = {  # which prediction key(s) mean "the extractor produced something"
     "consignor name": ["consignorAddress"], "consignee gstin": ["consigneeGstin"], "consignee name": ["consigneeAddress"],
     "consignee address": ["consigneeAddress"], "consignee phone": ["consigneePhone", "phoneNo"],
     "vehicle (lorry) no": ["lorryNo"], "to (destination)": ["to"], "lr no": ["lrNo"],
+    "weight (kg)": ["actualWt"], "from (origin)": ["from"],
     "total pieces": ["packages"], "total amount": ["declaredValue"],
 }
 

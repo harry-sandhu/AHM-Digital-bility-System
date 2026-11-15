@@ -24,9 +24,12 @@ LR_RE = re.compile(r"(\d{3,7})\s*dt\.?\s*(\d{1,2}\s?-\s?[A-Za-z]{3}\s?-\s?\d{2,4
 AMOUNT_RE = re.compile(r"\d[\d,]*\.\d{2}")
 # OCR sometimes inserts spaces or turns commas into dots: "13,78 765.00", "13.78.765.00"
 _LOOSE_AMOUNT = re.compile(
-    r"(?<![\d,.])(?:\d{1,3}(?:[,.]\d{2,3}|[ ]\d{3}(?=[.,]\d{2}(?!\d)))*|\d+)[.,]\d{2}(?!\d)"
+    r"(?<![\d,.])(?:\d{1,3}(?:[,.]\d{2,3}|[ ]\d{3}(?=[.,]\d{2}(?!\d)))*|\d+)[.,]\d{2}(?![\d]|[.,]\d)"
 )
 _STRICT_AMOUNT = re.compile(r"^(\d{1,3}(,\d{3})*|\d{1,2}(,\d{2})*,\d{3}|\d+)\.\d{2}$")
+
+
+_ANY_NUMBER = re.compile(r"(?<![\d,.])\d[\d,.]*\d")
 
 
 def parse_amounts(text):
@@ -38,6 +41,16 @@ def parse_amounts(text):
         if len(digits) < 3:
             continue
         out.append((int(digits[:-2]) + int(digits[-2:]) / 100.0, bool(_STRICT_AMOUNT.match(raw))))
+    if not out:
+        # Damaged grouping the strict pattern rejects: "3,54000.00" (a comma was not read) or
+        # "3,00,00000" (the decimal point was not read). Money always ends in two decimals, and
+        # no real group after a separator has 5 digits, so both can still be read.
+        for m in _ANY_NUMBER.finditer(text):
+            raw = m.group(0)
+            digits = re.sub(r"\D", "", raw)
+            last = re.split(r"[,.]", raw)[-1]
+            if len(digits) >= 3 and (re.search(r"[,.]\d{2}$", raw) or len(last) == 5):
+                out.append((int(digits[:-2]) + int(digits[-2:]) / 100.0, False))
     return out
 PCS_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*P[CGO]S", re.I)
 _PIECE_UNITS = {"PCS", "PGS", "PCO", "NOS", "NO", "BAG", "BAGS", "BOX", "BOXES", "CTN", "BDL", "ROLL", "ROLLS"}
@@ -339,6 +352,7 @@ _STATES = {
     "jammu and kashmir", "jammu & kashmir", "ladakh", "chandigarh", "puducherry", "india",
     "uttarpradesh", "uttrakhand", "up", "uk", "mp", "hp", "hr", "pb", "rj", "gj", "mh", "dl", "j&k",
 }
+_STATE_ANYWHERE = re.compile(r"(?i)(?:" + "|".join(sorted((re.escape(x) for x in _STATES if len(x) > 5), key=len, reverse=True)) + r")")
 _STATE_TAIL = re.compile(r"(?i)\s+(?:" + "|".join(sorted((re.escape(x) for x in _STATES if len(x) > 3), key=len, reverse=True)) + r")$")
 
 
@@ -359,7 +373,8 @@ def city_of(lines):
         parts += re.split(r"[,\n]|(?<![Dd]istt)(?<![Dd]ist)(?<![Vv]ill)(?<=[a-z]{3})\.\s+(?=[A-Z])", ln)   # "Po Danpur. Rudrapur"
     towns, district = [], None
     for p in parts:
-        p = re.sub(r"(?i)\bu\.?\s*s\.?\s*nag[a-z]{1,2}\b", " ", p)   # "(U.S. Nagar)" whose brackets were not read
+        p = re.sub(r"(?i)(?:\b[uj]?\.?\s*s\.|u\.?\s*s\.|\bu\.?\s*s\s+)\s*nag\w*", " ", p)           # "(U.S. Nagar)" whose brackets were not read, also "S.Nagar"
+        p = _STATE_ANYWHERE.sub(" ", p)                                  # a state glued on: "Kashipuruttrakhand"
         p = re.sub(r"\b\d{6}\b", " ", p)                  # pin code
         p = re.sub(r"(?i)\bcode\s*:?\s*\d+", " ", p)
         p = re.sub(r"\s*[-:.]+\s*$", "", tidy(p)).strip(" -.:")

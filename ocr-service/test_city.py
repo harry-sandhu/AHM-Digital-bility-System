@@ -29,6 +29,23 @@ class CityOf(unittest.TestCase):
         self.assertIsNone(city_of([]))
 
 
+class DamagedOcr(unittest.TestCase):
+    def test_glued_origin(self):
+        for text, want in [("U.S.Nagaruttrakhand", None), ("Kashipuru.S.Nagar", "Kashipur"), ("S.Nagar.Uttrakhand", None),
+                           ("KASHIPUR U.S.Nagar", "Kashipur")]:
+            self.assertEqual(city_of([text]), want, text)
+        self.assertEqual(city_of(["MAHUKHERA, KASHIPUR,", "U.S.Nagaruttrakhand"]), "Kashipur")
+
+    def test_amounts_with_lost_separators(self):
+        from extract import parse_amounts
+        self.assertEqual(parse_amounts("<3,54000.00")[0][0], 354000.0)
+        self.assertEqual(parse_amounts("3,54000.00")[0][0], 354000.0)
+        self.assertEqual(parse_amounts("3,00,00000")[0][0], 300000.0)
+        self.assertEqual(parse_amounts("₹3,54,000.00"), [(354000.0, True)])
+        self.assertEqual(parse_amounts("10,000.000KG"), [])        # a quantity is not money
+        self.assertEqual(parse_amounts("44123190"), [])            # nor is an HSN code
+
+
 class Thickness(unittest.TestCase):
     def test_glued_and_separate_row_numbers(self):
         self.assertEqual(thicknesses(["125mm Plywood 1.840x0.920", "225mm Plywood 2.140x0.710", "330mm Plywood"]), [25, 30])
