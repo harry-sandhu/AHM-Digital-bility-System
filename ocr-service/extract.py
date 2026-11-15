@@ -589,23 +589,43 @@ def extract(boxes):
             sizes = thicknesses(names)
             fields["description"] = " / ".join(kinds) + (" " + ", ".join(f"{t}mm" for t in sizes) if sizes else "")
         else:
-            # any other goods: the first item's name ("1 ADF R-105" -> "ADF R-105")
+            # any other goods: the item names ("1 ADF R-105" -> "ADF R-105"), up to three
+            names_found = []
             for i in region:
                 # drop the row number ("1 ADF R-105"); OCR sometimes glues it on: "1ADF R-105"
                 # (the first item row is always number 1)
                 name = re.sub(r"^(?:\d+\s+|1(?=[A-Z]))", "", i.text.strip())
-                if (re.search(r"[A-Za-z]{3}", name) and not name.startswith("(") and len(name) <= 40
-                        and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total)", name)):
-                    fields["description"] = name
-                    break
+                numbered = bool(re.match(r"^\d+\s*[A-Za-z]", i.text.strip()))
+                if (re.search(r"[A-Za-z]{2}", name) and not name.startswith("(") and len(name) <= 40
+                        and (numbered or not names_found)
+                        and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total)", name)
+                        and name not in names_found):
+                    names_found.append(name)
+                    if len(names_found) == 3:
+                        break
+            if names_found:
+                fields["description"] = " / ".join(names_found)
         # "(280 BAGS X 25 KGS)" in the item text -> number of packages and how they are packed
-        for i in region:
-            m = PACKS_RE.search(i.text)
-            if m:
-                fields.setdefault("packages", m.group(1))
-                unit = m.group(2).title()
-                fields["methodOfPacking"] = unit if unit.endswith("s") else unit + "s"
-                break
+        # (several items packed the same way add up: 10 drums + 20 drums = 30 drums)
+        packs = [PACKS_RE.search(i.text) for i in region]
+        packs = [m for m in packs if m]
+        if packs:
+            unit = packs[0].group(2).title()
+            if len({m.group(2).title() for m in packs}) == 1:
+                fields.setdefault("packages", str(sum(int(m.group(1)) for m in packs)))
+            else:
+                fields.setdefault("packages", packs[0].group(1))
+            fields["methodOfPacking"] = unit if unit.endswith("s") else unit + "s"
+
+        # No quantity on the "Total" row (it only shows the amount): add up the item lines instead,
+        # when they are all in the same unit.
+        if "actualWt" not in fields:
+            lo, hi = desc_hdr.y1 + 8, (end or desc_hdr.y1 + 600)
+            qtys = [m for i in page.items if i.x0 > desc_hdr.x1 and lo <= i.cy <= hi for m in [QTY_RE.fullmatch(i.text.strip())] if m]
+            wts = [m for m in qtys if m.group(2).upper() in _WEIGHT_UNITS]
+            if wts and len({_WEIGHT_UNITS[m.group(2).upper()] for m in wts}) == 1 and len(wts) == len(qtys):
+                total = sum(float(m.group(1).replace(",", "")) for m in wts)
+                fields["actualWt"] = f"{_num(str(total))} {_WEIGHT_UNITS[wts[0].group(2).upper()]}"
 
     # from / to: the towns the two addresses end in (a printed Destination wins)
     if seller_addr and not fields.get("from"):
