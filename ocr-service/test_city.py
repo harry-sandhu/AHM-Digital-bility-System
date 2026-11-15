@@ -1,5 +1,5 @@
 import unittest
-from extract import city_of, thicknesses
+from extract import _num, city_of, thicknesses
 
 
 class CityOf(unittest.TestCase):
@@ -32,6 +32,14 @@ class Thickness(unittest.TestCase):
 
     def test_none(self):
         self.assertEqual(thicknesses(["Jai Mata Di Plywood"]), [])
+
+
+class Quantity(unittest.TestCase):
+    def test_lost_decimal_point(self):
+        self.assertEqual(_num("7,00000"), "7000")      # OCR read "7,000.00" without the point
+        self.assertEqual(_num("7,000.00"), "7000")
+        self.assertEqual(_num("1,234"), "1234")
+        self.assertEqual(_num("12.5"), "12.5")
 
 
 if __name__ == "__main__":

@@ -48,6 +48,9 @@ PACKS_RE = re.compile(r"(\d+)\s*(BAGS?|BOXES|BOX|CARTONS?|DRUMS?|ROLLS?|BUNDLES?
 
 
 def _num(text):
+    # "7,00000": OCR lost the decimal point of "7,000.00" (nothing groups 5 digits after a comma)
+    if "," in text and "." not in text and len(text.rsplit(",", 1)[1]) == 5:
+        text = text[:-2] + "." + text[-2:]
     v = float(text.replace(",", ""))
     return str(int(v)) if v == int(v) else f"{v:g}"
 
