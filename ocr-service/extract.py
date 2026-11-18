@@ -425,6 +425,95 @@ def thicknesses(item_lines):
     return sorted(out)
 
 
+def _fuzzy_total_labels(page, below):
+    """"Total" read as "Taial" / "Totai": short items whose letters are close to "total" (cheap, only used when
+    no label starts with "Total")."""
+    out = []
+    for i in page.items:
+        t = _letters(i.text)
+        if i.y0 > below and 4 <= len(t) <= 6 and SequenceMatcher(None, t, "total").ratio() >= 0.6:
+            out.append(i)
+    return sorted(out, key=lambda i: (i.y0, i.x0))
+
+
+def repair_series_slash(token, items):
+    """OCR often reads the "/" of a numbered series ("SC/1526") as a letter or digit ("SCI1526", "SC11526").
+    The same invoice prints its plain number elsewhere (the Delivery Note / Dispatch Doc fields hold "1526"), so
+    when `token` is letters + ONE stray character + exactly such a separately printed number, that stray
+    character was the slash."""
+    if not token or "/" in token:
+        return token
+    m = re.match(r"^([A-Za-z]{1,5}?)([Il1|!])(\d{2,})$", token)
+    if not m:
+        return token
+    prefix, tail = m.group(1), m.group(3)
+    others = sum(1 for i in items if i.text.strip() == tail)
+    # the stray char may be a digit read from "/": then `tail` could be one digit longer than the real number
+    shorter = m.group(3)[1:] if m.group(2) == "1" else None
+    if others:
+        return f"{prefix}/{tail}"
+    if shorter and len(shorter) >= 2 and sum(1 for i in items if i.text.strip() == shorter):
+        return f"{prefix}/{shorter}"
+    return token
+
+
+def _goods_anchor(page, inv_label):
+    """A stand-in for the "Description of Goods" heading when that heading was not read: the first row that holds
+    an HSN code with a quantity to its right marks where the goods start. -> Item or None."""
+    h0 = max(inv_label.h, 12)
+    hsns = sorted((i for i in page.items if re.fullmatch(r"\d{4}|\d{6}|\d{8}", i.text.strip()) and i.y0 > inv_label.y1 + 4 * h0),
+                  key=lambda i: (i.y0, i.x0))
+    for hsn in hsns:
+        row = [i for i in page.items if i is not hsn and abs(i.cy - hsn.cy) < max(10, hsn.h) and i.x0 > hsn.x1 - 5]
+        if any(QTY_RE.search(i.text) for i in row):
+            return Item("Description of Goods", 0.0,
+                        [[hsn.x0 - 500, hsn.y0 - 40], [hsn.x0 - 60, hsn.y0 - 40], [hsn.x0 - 60, hsn.y0 - 10], [hsn.x0 - 500, hsn.y0 - 10]])
+    return None
+
+
+def _party_by_gstin(page, left_x1, inv_label):
+    """Consignee found by its GSTIN when the "Consignee (Ship to)" / "Buyer (Bill to)" headings were not read.
+    Invoices list GSTINs top to bottom: seller, consignee (ship to), buyer (bill to). The consignee is the 2nd of
+    three, the 1st when the first two are the same party (ship-to = bill-to and the seller's was unreadable), and the
+    2nd of two. -> (lines above the GSTIN, gstin, status) or None."""
+    occ = []
+    for it in sorted(page.items, key=lambda i: (i.cy, i.x0)):
+        if it.x1 > left_x1 + 5 or it.y0 < inv_label.y0 - 60:
+            continue
+        g = find_gstin(it.text)
+        if g[0]:
+            occ.append((g[0], g[1], it))
+    if len(occ) >= 3:
+        pick = occ[1]
+    elif len(occ) == 2:
+        pick = occ[0] if occ[0][0] == occ[1][0] else occ[1]
+    else:
+        return None
+    value, status, g_item = pick
+    h = max(g_item.h, 12)
+    above = [i for i in page.items if i is not g_item and i.x1 <= left_x1 + 5 and g_item.cy - 9 * h < i.cy < g_item.cy - 0.4 * h]
+    rows = []   # (cy, [items]) from the nearest row upward
+    for i in sorted(above, key=lambda i: -i.cy):
+        if rows and abs(rows[-1][0] - i.cy) <= max(6, i.h * 0.45):
+            rows[-1][1].append(i)
+        else:
+            rows.append((i.cy, [i]))
+    lines, last = [], g_item.cy
+    for cy, its in rows:
+        text = " ".join(i.text for i in sorted(its, key=lambda i: i.x0))
+        if last - cy > 2.4 * h or len(lines) >= 5:
+            break                                              # a gap: that is the next block (the seller's)
+        if _STOP_ADDR.match(tidy(text)) or re.fullmatch(r"(?i)(gstin\W*uin|pan\W*no|state\W*name)\W*", _letters(text)):
+            last = cy
+            continue
+        lines.append(tidy(text))
+        last = cy
+    lines.reverse()
+    if not lines:
+        return None
+    return lines, value, status, g_item
+
+
 def extract(boxes):
     page = Page(boxes)
     fields, extra, warn = {}, {}, []
@@ -438,6 +527,8 @@ def extract(boxes):
     buyer_lbl = page.anchor_any(["buyerbillto", "billto", "billedto", "buyer"], 0.72)
     desc_hdr = page.anchor_any(["descriptionofgoods", "descriptionofgoodsandservices", "particulars", "itemdescription"])
     title = next(iter(page.find(r"^TaxInvoice")), None)
+    if desc_hdr is None and inv_label is not None:
+        desc_hdr = _goods_anchor(page, inv_label)          # heading unreadable: use the HSN-code row instead
 
     # left edge of the right-hand column of header boxes (Invoice No., Delivery Note, ...)
     col_lbl = inv_label or next(iter(page.find(r"^DeliveryNote|^Buyer.?sOrder|^DispatchDoc")), None)
@@ -500,6 +591,21 @@ def extract(boxes):
                         if w:
                             warn.append(w)
 
+    elif inv_label is not None:
+        got = _party_by_gstin(page, left_x1, inv_label)
+        if got:
+            lines, g_value, g_status, g_item = got
+            name, addr, mobile, _ = _party(lines + [g_item.text])
+            buyer_addr = addr
+            fields["consigneeAddress"] = "\n".join([name] + addr) if name else None
+            fields["consigneeGstin"] = g_value
+            if mobile:
+                fields["phoneNo"] = mobile
+            warn.append("consignee: the Consignee / Buyer headings could not be read, so the party was found by its GSTIN - please check it")
+            w = _gstin_warning("consigneeGstin", g_status)
+            if w:
+                warn.append(w)
+
     # ---- invoice no / date / e-way ----
     val = None
     if inv_label:
@@ -511,7 +617,7 @@ def extract(boxes):
                  and col_lbl.y0 - 2.6 * h <= i.y0 < col_lbl.y0 - 0.2 * h]
         val = max(above, key=lambda i: i.y0) if above else None
     if val:
-        fields["invoiceNoDate"] = clean_invoice_no(val.text)
+        fields["invoiceNoDate"] = repair_series_slash(clean_invoice_no(val.text), page.items)
         same_row = [i for i in page.items if abs(i.cy - val.cy) < max(10, val.h * 0.8) and i.x0 > val.x0 - 2]
         joined = " ".join(i.text for i in sorted(same_row, key=lambda i: i.x0))
         m = re.search(r"(\d{12})\s*(\d{1,2}\s?-\s?[A-Za-z]{3}\s?-\s?\d{2})", joined)
@@ -563,7 +669,9 @@ def extract(boxes):
 
     # ---- totals: the "Total" row that carries a quantity (pieces, kg, ...) ----
     if desc_hdr:
-        for t in page.find(r"^Total", below=desc_hdr.y1):
+        total_labels = sorted(set(page.find(r"^Total", below=desc_hdr.y1)) | set(_fuzzy_total_labels(page, desc_hdr.y1)),
+                              key=lambda i: (i.y0, i.x0))
+        for t in total_labels:
             row = [i for i in page.items if abs(i.cy - t.cy) < max(10, t.h * 0.8)]
             joined = " ".join(i.text for i in sorted(row, key=lambda i: i.x0))
             # first quantity in pieces or weight (an area like "1,591.075 SQM" can sit right next to it)
@@ -591,7 +699,8 @@ def extract(boxes):
         if "declaredValue" not in fields:
             # No "Total" row carries a quantity (it only shows the amount): take the first
             # "Total" row below the items - that is the invoice total.
-            for t in page.find(r"^Total", below=desc_hdr.y1 + 20):
+            for t in sorted(set(page.find(r"^Total", below=desc_hdr.y1 + 20)) | set(_fuzzy_total_labels(page, desc_hdr.y1 + 20)),
+                            key=lambda i: (i.y0, i.x0)):
                 window = [i for i in page.items if t.cy - 26 <= i.cy <= t.cy + 30 and i.x0 > t.x1
                           and not UNIT_WORD.search(i.text)]
                 cands = [c for i in window for c in parse_amounts(i.text)]
@@ -647,9 +756,10 @@ def extract(boxes):
                 # (the first item row is always number 1)
                 name = re.sub(r"^(?:\d+\s+|1(?=[A-Z]))", "", i.text.strip())
                 numbered = bool(re.match(r"^\d+\s*[A-Za-z]", i.text.strip()))
+                name = re.sub(r"[-\s]+\d{6,}$", "", name)          # "SODIUM SILICATE-LQ-28391900" -> "...-LQ"
                 if (re.search(r"[A-Za-z]{2}", name) and not name.startswith("(") and len(name) <= 40
                         and (numbered or not names_found)
-                        and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total)", name)
+                        and not re.match(r"(?i)(no\.?|sl\b|description|hsn|quantity|rate|per|amount|output|total|round|less\b|add\b|freight|discount|[ics]gst|tax)", name)
                         and name not in names_found):
                     names_found.append(name)
                     if len(names_found) == 3:

@@ -45,7 +45,7 @@ def words_to_number(text):
     return total + current if seen else None
 
 
-_LINE = re.compile(r"(?i)\bINR\b[:\s]*(.+?)\bonly\b")
+_LINE = re.compile(r"(?i)\b(?:INR|Indian\s*Rupees?|Rupees?)\b[:\s]*(.+?)\bonly\b")
 
 
 def total_in_words(lines):
