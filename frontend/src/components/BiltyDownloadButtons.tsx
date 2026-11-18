@@ -1,10 +1,11 @@
 import React from "react";
+import { flushSync } from "react-dom";
 
 type BiltyDownloadButtonsProps = {
   disabled?: boolean;
   size?: "sm" | "md";
   showPrintButton?: boolean;
-  /** When set, shows an Original / Duplicate / Both picker next to Print. */
+  /** When set (the bilty has a Duplicate), shows separate Print Original / Print Duplicate / Print Both buttons. */
   copies?: PrintCopies;
   onCopiesChange?: (copies: PrintCopies) => void;
   /** Runs before the print dialog; return false to cancel the print. */
@@ -24,7 +25,9 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
   const buttonSizeClass =
     size === "sm" ? "px-3 py-2 text-xs rounded-xl" : "px-4 py-2 text-sm rounded-2xl";
 
-  const handlePrint = async () => {
+  // `choice` is which copy this click prints. The page is re-rendered with that copy BEFORE the print dialog
+  // opens (flushSync), otherwise the dialog would show the previously chosen copy.
+  const handlePrint = async (choice?: PrintCopies) => {
     if (disabled) {
       return;
     }
@@ -33,31 +36,34 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
       return;
     }
 
+    if (choice && onCopiesChange) {
+      flushSync(() => onCopiesChange(choice));
+    }
+
     window.print();
   };
+
+  const buttonClass = `${buttonSizeClass} border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50`;
+  const hasDuplicate = Boolean(copies && onCopiesChange);
 
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">
       <div className="flex flex-wrap gap-3 sm:justify-end">
-        {showPrintButton && copies && onCopiesChange ? (
-          <select
-            value={copies}
-            onChange={(event) => onCopiesChange(event.target.value as PrintCopies)}
-            aria-label="Which copy to print"
-            className={`${buttonSizeClass} border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm`}
-          >
-            <option value="both">Print: Original + Duplicate</option>
-            <option value="original">Print: Original only</option>
-            <option value="duplicate">Print: Duplicate only</option>
-          </select>
+        {showPrintButton && hasDuplicate ? (
+          <>
+            <button type="button" onClick={() => handlePrint("original")} disabled={disabled} className={buttonClass}>
+              Print Original
+            </button>
+            <button type="button" onClick={() => handlePrint("duplicate")} disabled={disabled} className={buttonClass}>
+              Print Duplicate
+            </button>
+            <button type="button" onClick={() => handlePrint("both")} disabled={disabled} className={buttonClass}>
+              Print Both
+            </button>
+          </>
         ) : null}
-        {showPrintButton ? (
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={disabled}
-            className={`${buttonSizeClass} border border-slate-200 bg-white font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50`}
-          >
+        {showPrintButton && !hasDuplicate ? (
+          <button type="button" onClick={() => handlePrint()} disabled={disabled} className={buttonClass}>
             Print Bilty
           </button>
         ) : null}
