@@ -28,10 +28,10 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
       ? "expired"
       : "draft");
 
-  // Before printing the owner can edit; after printing only a superadmin
-  // can; past the deadline nobody can.
+  // Before printing the owner can edit; after printing, or past the
+  // deadline, only a superadmin can.
   const canEdit =
-    status !== "expired" && (role === "superadmin" || !bilty.printedAt);
+    role === "superadmin" || (status !== "expired" && !bilty.printedAt);
 
   return (
     <div className="rounded-card border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
