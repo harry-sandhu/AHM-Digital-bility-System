@@ -10,6 +10,8 @@ type BiltyDownloadButtonsProps = {
   onCopiesChange?: (copies: PrintCopies) => void;
   /** Runs before the print dialog; return false to cancel the print. */
   onBeforePrint?: () => Promise<boolean> | boolean;
+  /** Runs once the print dialog closes (printed or cancelled). */
+  onAfterPrint?: () => void;
 };
 
 export type PrintCopies = "original" | "duplicate" | "both";
@@ -21,6 +23,7 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
   copies,
   onCopiesChange,
   onBeforePrint,
+  onAfterPrint,
 }) => {
   const buttonSizeClass =
     size === "sm" ? "px-3 py-2 text-xs rounded-xl" : "px-4 py-2 text-sm rounded-2xl";
@@ -38,6 +41,14 @@ const BiltyDownloadButtons: React.FC<BiltyDownloadButtonsProps> = ({
 
     if (choice && onCopiesChange) {
       flushSync(() => onCopiesChange(choice));
+    }
+
+    if (onAfterPrint) {
+      const handleAfterPrint = () => {
+        window.removeEventListener("afterprint", handleAfterPrint);
+        onAfterPrint();
+      };
+      window.addEventListener("afterprint", handleAfterPrint);
     }
 
     window.print();

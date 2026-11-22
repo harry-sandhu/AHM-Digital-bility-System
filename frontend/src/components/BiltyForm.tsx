@@ -779,6 +779,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
               disabled={!hasSavedBilty}
               showPrintButton
               onBeforePrint={handleBeforePrint}
+              onAfterPrint={() => navigate("/")}
               copies={showDuplicate ? printCopies : undefined}
               onCopiesChange={setPrintCopies}
             />
