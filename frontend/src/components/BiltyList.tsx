@@ -18,6 +18,7 @@ type BiltyCardProps = {
 
 const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
   const navigate = useNavigate();
+  const [showDetails, setShowDetails] = useState(false);
   const normalizedFormData: BiltyFormState = normalizeBiltyFormData(bilty.formData);
   const hasDocumentData = Object.values(normalizedFormData).some((value) =>
     String(value || "").trim().length > 0
@@ -33,27 +34,49 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
   const canEdit =
     role === "superadmin" || (status !== "expired" && !bilty.printedAt);
 
+  // Fields worth a quick glance beyond the row: who made it, where it's
+  // going, and money/deadline flags. Hidden by default to keep each row to
+  // one line - "Details" expands them.
+  const hasDetails = Boolean(
+    (role === "admin" || role === "superadmin") && bilty.createdBy
+  ) ||
+    bilty.formData?.deliveryAddress ||
+    bilty.formData?.driver ||
+    bilty.formData?.from ||
+    bilty.formData?.to ||
+    bilty.freightAdjustment ||
+    bilty.gstChargePaid ||
+    bilty.expiresAt;
+
   return (
-    <div className="rounded-card border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-            Consignment Note No.
+    <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="min-w-[7rem]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Consignment No.
           </p>
-          <p className="mt-1 text-xl font-bold text-slate-900">
-            {bilty.consignmentNo ?? "—"}
+          <p className="text-base font-bold text-slate-900">{bilty.consignmentNo ?? "—"}</p>
+        </div>
+
+        <div className="min-w-[6rem]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Bilty No.
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            System Bilty ID: {bilty.biltyNumber}
+          <p className="text-sm text-slate-700">{bilty.biltyNumber}</p>
+        </div>
+
+        <div className="min-w-[7rem]">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Date
+          </p>
+          <p className="text-sm text-slate-700">
+            {bilty.createdAt ? new Date(bilty.createdAt).toLocaleDateString() : "—"}
           </p>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
-          <div className="rounded-2xl bg-slate-100 px-3 py-2 text-right text-xs text-slate-500">
-            {bilty.createdAt ? new Date(bilty.createdAt).toLocaleString() : "No date"}
-          </div>
+        <div className="flex items-center gap-2">
           <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
               status === "expired"
                 ? "bg-danger-100 text-danger-700"
                 : "bg-success-100 text-success-700"
@@ -61,105 +84,110 @@ const BiltyCard: React.FC<BiltyCardProps> = ({ bilty, role, onDelete }) => {
           >
             {status === "expired" ? "Expired" : "Active"}
           </span>
-          <BiltyDownloadButtons
-            disabled={!hasDocumentData}
-            size="sm"
-          />
           {bilty.printedAt ? (
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
               Printed
             </span>
           ) : null}
-          {canEdit || role === "superadmin" ? (
-            <div className="flex flex-wrap justify-end gap-2">
-              {canEdit ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
-                  className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-semibold text-accent-700"
-                >
-                  Edit Bilty
-                </button>
-              ) : null}
-              {role === "superadmin" ? (
-                <button
-                  type="button"
-                  onClick={() => onDelete?.(bilty)}
-                  className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700"
-                >
-                  Delete Bilty
-                </button>
-              ) : null}
-            </div>
+        </div>
+
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {hasDetails ? (
+            <button
+              type="button"
+              onClick={() => setShowDetails((value) => !value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600"
+            >
+              {showDetails ? "Hide Details" : "Details"}
+            </button>
+          ) : null}
+          <BiltyDownloadButtons disabled={!hasDocumentData} size="sm" />
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/bilty/edit/${bilty._id}`)}
+              className="rounded-xl border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-semibold text-accent-700"
+            >
+              Edit Bilty
+            </button>
+          ) : null}
+          {role === "superadmin" ? (
+            <button
+              type="button"
+              onClick={() => onDelete?.(bilty)}
+              className="rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs font-semibold text-danger-700"
+            >
+              Delete Bilty
+            </button>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
-        {(role === "admin" || role === "superadmin") && bilty.createdBy ? (
-          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
-            <p className="font-semibold text-slate-900">Created By</p>
-            <p className="mt-1">{bilty.createdBy.name}</p>
-            <p>{bilty.createdBy.phone}</p>
+      {showDetails ? (
+        <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-sm text-slate-600 md:grid-cols-2">
+          {(role === "admin" || role === "superadmin") && bilty.createdBy ? (
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-xs font-semibold text-slate-900">Created By</p>
+              <p>{bilty.createdBy.name} · {bilty.createdBy.phone}</p>
+            </div>
+          ) : null}
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-xs font-semibold text-slate-900">Delivery Address</p>
+            <p className="break-words">{bilty.formData?.deliveryAddress || "—"}</p>
           </div>
-        ) : null}
-        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
-          <p className="font-semibold text-slate-900">Delivery Address</p>
-          <p className="mt-1 break-words">{bilty.formData?.deliveryAddress || "—"}</p>
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-xs font-semibold text-slate-900">Driver</p>
+            <p>{bilty.formData?.driver || "—"}</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-xs font-semibold text-slate-900">Route</p>
+            <p>
+              {bilty.formData?.from || "—"} → {bilty.formData?.to || "—"}
+            </p>
+          </div>
+          {bilty.freightAdjustment ? (
+            <div
+              className={`rounded-xl px-3 py-2 md:col-span-2 ${
+                bilty.freightAdjustment > 0
+                  ? "bg-amber-50 text-amber-800"
+                  : "bg-success-50 text-success-700"
+              }`}
+            >
+              <p className="text-xs font-semibold">
+                {bilty.freightAdjustment > 0
+                  ? `Extra ₹${bilty.freightAdjustment} for higher freight tier`
+                  : `Discount ₹${Math.abs(bilty.freightAdjustment)} for lower freight tier`}
+              </p>
+              <p className="text-xs">
+                {bilty.freightAdjustment > 0
+                  ? bilty.extraPaid && bilty.extraPaid >= bilty.freightAdjustment
+                    ? "Paid."
+                    : "Payment pending."
+                  : "Applied to your net bilty charge."}
+              </p>
+            </div>
+          ) : null}
+          {bilty.gstChargePaid ? (
+            <div className="rounded-xl bg-slate-50 px-3 py-2 md:col-span-2">
+              <p className="text-xs font-semibold text-slate-900">GST charge paid</p>
+              <p>
+                ₹{bilty.gstChargePaid.toLocaleString("en-IN", { maximumFractionDigits: 2 })} (Transporter pays the GST: 5% of freight)
+              </p>
+            </div>
+          ) : null}
+          {bilty.expiresAt ? (
+            <div className="rounded-xl bg-slate-50 px-3 py-2 md:col-span-2">
+              <p className="text-xs font-semibold text-slate-900">Deadline</p>
+              <p>
+                {new Date(bilty.expiresAt).toLocaleString([], {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </p>
+            </div>
+          ) : null}
         </div>
-        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
-          <p className="font-semibold text-slate-900">Driver</p>
-          <p className="mt-1">{bilty.formData?.driver || "—"}</p>
-        </div>
-        <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100">
-          <p className="font-semibold text-slate-900">Route</p>
-          <p className="mt-1">
-            {bilty.formData?.from || "—"} → {bilty.formData?.to || "—"}
-          </p>
-        </div>
-        {bilty.freightAdjustment ? (
-          <div
-            className={`rounded-2xl px-4 py-3 shadow-sm ring-1 md:col-span-2 ${
-              bilty.freightAdjustment > 0
-                ? "bg-amber-50 text-amber-800 ring-amber-100"
-                : "bg-success-50 text-success-700 ring-success-100"
-            }`}
-          >
-            <p className="font-semibold">
-              {bilty.freightAdjustment > 0
-                ? `Extra ₹${bilty.freightAdjustment} for higher freight tier`
-                : `Discount ₹${Math.abs(bilty.freightAdjustment)} for lower freight tier`}
-            </p>
-            <p className="mt-1 text-xs">
-              {bilty.freightAdjustment > 0
-                ? bilty.extraPaid && bilty.extraPaid >= bilty.freightAdjustment
-                  ? "Paid."
-                  : "Payment pending."
-                : "Applied to your net bilty charge."}
-            </p>
-          </div>
-        ) : null}
-        {bilty.gstChargePaid ? (
-          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
-            <p className="font-semibold text-slate-900">GST charge paid</p>
-            <p className="mt-1">
-              ₹{bilty.gstChargePaid.toLocaleString("en-IN", { maximumFractionDigits: 2 })} (Transporter pays the GST: 5% of freight)
-            </p>
-          </div>
-        ) : null}
-        {bilty.expiresAt ? (
-          <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-100 md:col-span-2">
-            <p className="font-semibold text-slate-900">Deadline</p>
-            <p className="mt-1">
-              {new Date(bilty.expiresAt).toLocaleString([], {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
-            </p>
-          </div>
-        ) : null}
-      </div>
-
+      ) : null}
     </div>
   );
 };
