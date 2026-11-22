@@ -10,8 +10,9 @@ type Props = {
 };
 
 /**
- * Superadmin-only view of the backed-up printed versions of a bilty. Each
- * entry is the bilty exactly as it was before a superadmin changed it.
+ * Superadmin-only view of a bilty's backed-up earlier versions (kept before a
+ * superadmin edit to a printed or expired bilty). Each entry is the bilty
+ * exactly as it was before that change.
  */
 const BiltyRevisionsModal: React.FC<Props> = ({ biltyId, onClose }) => {
   const [revisions, setRevisions] = useState<BiltyRevision[] | null>(null);
@@ -37,7 +38,7 @@ const BiltyRevisionsModal: React.FC<Props> = ({ biltyId, onClose }) => {
       <div className="flex max-h-full w-full max-w-5xl flex-col rounded-card bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h3 id="revisions-title" className="text-lg font-bold text-slate-900">
-            Version history (printed copies before changes)
+            Version history (earlier copies before changes)
           </h3>
           <button
             type="button"

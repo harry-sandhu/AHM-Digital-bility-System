@@ -682,11 +682,12 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
     await submitBilty(false);
   };
 
-  // Past the deadline nobody (superadmin included) can change a bilty. Once
+  // Past the deadline only a superadmin can change a bilty. Once
   // printed, only a superadmin can.
   const isExpired = Boolean(deadlineAt && new Date(deadlineAt).getTime() <= now);
+  const isExpiredLocked = isExpired && !isSuperadmin;
   const isPrintLocked = Boolean(printedAt) && !isSuperadmin;
-  const isLocked = isExpired || isPrintLocked;
+  const isLocked = isExpiredLocked || isPrintLocked;
   const showDuplicate = formData.basisOfBooking !== "To Pay";
   const printOriginal = !showDuplicate || printCopies !== "duplicate";
   const printDuplicate = showDuplicate && printCopies !== "original";
@@ -766,7 +767,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
                 Back
               </button>
             ) : null}
-            {isSuperadmin && isEditMode && printedAt ? (
+            {isSuperadmin && isEditMode && (printedAt || isExpired) ? (
               <button
                 type="button"
                 onClick={() => setShowRevisions(true)}
@@ -791,7 +792,7 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
             >
               {isSaving
                 ? "Saving..."
-                : isExpired
+                : isExpiredLocked
                   ? "Expired"
                   : isPrintLocked
                     ? "Printed"
@@ -807,9 +808,9 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           Scanning a bill is best-effort text recognition &mdash; always double-check the filled fields before saving.
         </p>
 
-        {isExpired ? (
+        {isExpiredLocked ? (
           <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
-            This bilty's deadline has passed, so no one can change it any more.{" "}
+            This bilty's deadline has passed, so no one but a super admin can change it any more.{" "}
             {hasSavedBilty
               ? "You can still print the saved copy below."
               : "It was never saved, so start a new bilty to continue."}
@@ -818,6 +819,11 @@ const BiltyForm: React.FC<{ editBiltyId?: string }> = ({ editBiltyId }) => {
           <div className="no-print mb-4 rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-700 shadow-sm">
             This bilty has been printed, so it can no longer be changed. Only a super admin can
             change a printed bilty.
+          </div>
+        ) : isExpired && isSuperadmin ? (
+          <div className="no-print mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+            This bilty's deadline has passed. Your changes are allowed, and the pre-edit version is
+            kept as a backup under Version history.
           </div>
         ) : printedAt && isSuperadmin ? (
           <div className="no-print mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
