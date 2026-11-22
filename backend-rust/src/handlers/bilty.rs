@@ -445,8 +445,9 @@ pub async fn update_bilty(
         .map(|dt| is_past_deadline(Some(dt.to_chrono())))
         .unwrap_or(false);
 
-    // Past midnight nobody can change a bilty, superadmin included.
-    if is_expired {
+    // Past midnight nobody but a superadmin can change a bilty. A superadmin's edit
+    // keeps the expired version as a backup, the same as a printed-bilty edit below.
+    if is_expired && current_user.role != Role::Superadmin {
         if bilty.status != Some(BiltyStatus::Expired) {
             collection
                 .update_one(
@@ -609,9 +610,9 @@ pub async fn update_bilty(
         format_amount(grand_total - parse_amount(next_form_data.get_str("advance").ok())),
     );
 
-    // A superadmin changing a printed bilty: keep the printed version as a
+    // A superadmin changing a printed or expired bilty: keep the previous version as a
     // backup (never returned by the normal bilty endpoints).
-    if bilty.printed_at.is_some() && bilty.form_data != next_form_data {
+    if (bilty.printed_at.is_some() || is_expired) && bilty.form_data != next_form_data {
         state
             .db
             .collection::<Document>("biltyrevisions")
